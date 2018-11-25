@@ -143,9 +143,9 @@ if(OGRE_BUILD_DEPENDENCIES AND NOT EXISTS ${OGREDEPS_PATH})
         --build ${CMAKE_BINARY_DIR}/ZZIPlib-master ${BUILD_COMMAND_OPTS})
     
     message(STATUS "Building freetype")
-    file(DOWNLOAD
-        https://download.savannah.gnu.org/releases/freetype/freetype-2.9.tar.gz
-        ${OGRE_BINARY_DIR}/freetype-2.9.tar.gz)
+    #file(DOWNLOAD
+    #    https://download.savannah.gnu.org/releases/freetype/freetype-2.9.tar.gz
+    #    ${OGRE_BINARY_DIR}/freetype-2.9.tar.gz)
     execute_process(COMMAND ${CMAKE_COMMAND}
         -E tar xf freetype-2.9.tar.gz WORKING_DIRECTORY ${OGRE_BINARY_DIR})
     # patch toolchain for iOS

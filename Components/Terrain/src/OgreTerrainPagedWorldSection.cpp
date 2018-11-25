@@ -317,7 +317,9 @@ namespace Ogre
             long x, y;
             // pageID is the same as a packed index
             mTerrainGroup->unpackIndex(pageID, &x, &y);
-            mTerrainGroup->loadTerrain(x, y, false);
+			if (!mTerrainDefiner)
+				mTerrainDefiner = OGRE_NEW TerrainDefiner();
+			mTerrainDefiner->load(mTerrainGroup, x, y);
             mPagesInLoading.pop_front();
 
             unsigned long currentTime = Root::getSingletonPtr()->getTimer()->getMilliseconds();

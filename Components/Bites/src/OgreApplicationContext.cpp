@@ -36,6 +36,9 @@
 namespace OgreBites {
 
 static const char* SHADER_CACHE_FILENAME = "cache.bin";
+Ogre::String ApplicationContext::logFileName = "ogre.log";
+Ogre::String ApplicationContext::cfgFileName = "ogre.cfg";
+Ogre::String ApplicationContext::folderName = "Ogre";
 
 ApplicationContext::ApplicationContext(const Ogre::String& appName, bool)
 #if (OGRE_THREAD_PROVIDER == 3) && (OGRE_NO_TBB_SCHEDULER == 1)
@@ -43,7 +46,7 @@ ApplicationContext::ApplicationContext(const Ogre::String& appName, bool)
     #endif
 {
     mAppName = appName;
-    mFSLayer = new Ogre::FileSystemLayer(mAppName);
+    mFSLayer = new Ogre::FileSystemLayer(mAppName, folderName);
     mRoot = NULL;
     mOverlaySystem = NULL;
     mFirstRun = true;
@@ -222,8 +225,8 @@ void ApplicationContext::createRoot()
     }
 #   endif
 
-    mRoot = OGRE_NEW Ogre::Root(pluginsPath, mFSLayer->getWritablePath("ogre.cfg"),
-                                mFSLayer->getWritablePath("ogre.log"));
+    mRoot = OGRE_NEW Ogre::Root(pluginsPath, mFSLayer->getWritablePath(cfgFileName),
+                                mFSLayer->getWritablePath(logFileName));
 #endif
 
 #ifdef OGRE_STATIC_LIB
@@ -337,13 +340,14 @@ NativeWindowPair ApplicationContext::createWindow(const Ogre::String& name, Ogre
 #else
     Ogre::ConfigOptionMap ropts = mRoot->getRenderSystem()->getConfigOptions();
 
-    if(w == 0 && h == 0)
+	auto tW = w, tH = h;
+    if(tW == 0 && tW == 0)
     {
         std::istringstream mode(ropts["Video Mode"].currentValue);
         Ogre::String token;
-        mode >> w; // width
+        mode >> tW; // width
         mode >> token; // 'x' as seperator between width and height
-        mode >> h; // height
+        mode >> tH; // height
     }
 
     if(miscParams.empty())
@@ -370,11 +374,32 @@ NativeWindowPair ApplicationContext::createWindow(const Ogre::String& name, Ogre
     if(ropts["Full Screen"].currentValue == "Yes"){
        flags = SDL_WINDOW_FULLSCREEN;
     } else {
-       flags = SDL_WINDOW_RESIZABLE;
+       flags = 0;//SDL_WINDOW_RESIZABLE;
     }
 
     ret.native = SDL_CreateWindow(name.c_str(),
-                                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags);
+                                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1, 1, flags);
+#if OGRE_BITES_HAVE_SDL
+	if (ropts["Full Screen"].currentValue != "Yes") {
+		int tTop, tBot, tLef, tRig;      
+		SDL_Rect tScreen;
+		if (SDL_GetDisplayUsableBounds(SDL_GetWindowDisplayIndex(ret.native), &tScreen) >= 0)
+		{
+			SDL_GetWindowBordersSize(ret.native, &tTop, &tLef, &tBot, &tRig);
+			unsigned int tMaxW = tScreen.w - tLef - tRig;
+			unsigned int tMaxH = tScreen.h - tTop - tBot;
+			tW = tW > tMaxW ? tMaxW : tW;
+			tH = tH > tMaxH ? tMaxH : tH;
+			SDL_SetWindowSize(ret.native, tW, tH);
+			auto tX = (tMaxW - tW) / 2 + tScreen.x + tLef;
+			auto tY = (tMaxH - tH) / 2 + tScreen.y + tTop;
+			SDL_SetWindowPosition(ret.native, tX, tY);
+
+			SDL_SetWindowMinimumSize(ret.native, 400, 400);
+			SDL_SetWindowMaximumSize(ret.native, tMaxW, tMaxH);
+		}
+	}
+#endif
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
     SDL_GL_CreateContext(ret.native);
@@ -394,7 +419,7 @@ NativeWindowPair ApplicationContext::createWindow(const Ogre::String& name, Ogre
     miscParams["externalWindowHandle"] = Ogre::StringConverter::toString(size_t(wmInfo.info.cocoa.window));
 #endif
 #endif
-    ret.render = mRoot->createRenderWindow(name, w, h, false, &miscParams);
+    ret.render = mRoot->createRenderWindow(name, tW, tH, false, &miscParams);
     mWindows.push_back(ret);
 #endif
 
@@ -521,6 +546,12 @@ void ApplicationContext::_fireInputEvent(const Event& event, uint32_t windowID) 
         case FINGERMOTION:
             l.touchMoved(event.tfinger);
             break;
+		case TEXTEDITING:
+			l.textEdited(event.edit);
+			break;
+		case TEXTINPUT:
+			l.textInputted(event.edit);
+			break;
         }
     }
 }
@@ -711,7 +742,7 @@ void ApplicationContext::reconfigure(const Ogre::String &renderer, Ogre::NameVal
 
 void ApplicationContext::shutdown()
 {
-    if (Ogre::GpuProgramManager::getSingleton().getSaveMicrocodesToCache())
+    if (Ogre::GpuProgramManager::getSingletonPtr() && Ogre::GpuProgramManager::getSingleton().getSaveMicrocodesToCache())
     {
         Ogre::String path = mFSLayer->getWritablePath(SHADER_CACHE_FILENAME);
         std::fstream outFile(path.c_str(), std::ios::out | std::ios::binary);

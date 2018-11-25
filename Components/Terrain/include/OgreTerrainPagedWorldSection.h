@@ -162,6 +162,10 @@ namespace Ogre
             {
                 terrainGroup->defineTerrain(x,y);
             }
+			virtual void load(TerrainGroup* terrainGroup, long x, long y)
+			{
+				terrainGroup->loadTerrain(x, y, false);
+			}
             virtual ~TerrainDefiner() {}
         };
 

@@ -126,7 +126,7 @@ namespace Ogre
         mConfigPaths.push_back(appPath + '\\');
     }
     //---------------------------------------------------------------------
-    void FileSystemLayer::prepareUserHome(const Ogre::String& subdir)
+    void FileSystemLayer::prepareUserHome(const Ogre::String& subdir, const Ogre::String& supdir)
     {
         // fill mHomePath
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
@@ -140,7 +140,7 @@ namespace Ogre
         if(!mHomePath.empty())
         {
             // create Ogre subdir
-            mHomePath += "\\Ogre\\";
+            mHomePath += "\\" + supdir + "\\";
             if (!createDirectory(mHomePath))
             {
                 // couldn't create directory, fall back to current working dir

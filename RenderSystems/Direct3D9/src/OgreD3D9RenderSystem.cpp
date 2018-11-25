@@ -315,7 +315,6 @@ namespace Ogre
 
         optEnableFixedPipeline.name = "Fixed Pipeline Enabled";
         optEnableFixedPipeline.possibleValues.push_back( "Yes" );
-        optEnableFixedPipeline.possibleValues.push_back( "No" );
         optEnableFixedPipeline.currentValue = "Yes";
         optEnableFixedPipeline.immutable = false;
 
@@ -526,12 +525,7 @@ namespace Ogre
 
         if (name == "Fixed Pipeline Enabled")
         {
-            if (value == "Yes")
-            {
-                mEnableFixedPipeline = true;
-            }
-            else
-                mEnableFixedPipeline = false;
+            mEnableFixedPipeline = true;
         }
 
     }

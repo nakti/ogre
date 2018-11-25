@@ -281,7 +281,7 @@ namespace Ogre {
                 errors->Release();
             }
 
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, message,
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, message + "\n" + mSource,
                 "D3D9HLSLProgram::loadFromSource");
         }
         else

@@ -38,6 +38,8 @@ enum EventType {
     FINGERDOWN,
     FINGERUP,
     FINGERMOTION,
+	TEXTINPUT,
+	TEXTEDITING,
 };
 
 typedef int Keycode;
@@ -73,6 +75,11 @@ struct TouchFingerEvent {
     float x, y;
     float dx, dy;
 };
+struct TextEditEvent {
+	int type;
+	char text[32];
+	int start, length;
+};
 
 union Event
 {
@@ -82,6 +89,7 @@ union Event
     MouseWheelEvent wheel;
     MouseMotionEvent motion;
     TouchFingerEvent tfinger;
+	TextEditEvent edit;
 };
 
 // SDL compat
@@ -129,6 +137,8 @@ struct _OgreBitesExport InputListener {
     virtual bool mouseWheelRolled(const MouseWheelEvent& evt) { return true; }
     virtual bool mousePressed(const MouseButtonEvent& evt) { return true; }
     virtual bool mouseReleased(const MouseButtonEvent& evt) { return true; }
+	virtual bool textEdited(const TextEditEvent& evt) { return true; }
+	virtual bool textInputted(const TextEditEvent& evt) { return true; }
 };
 }
 /** @} */

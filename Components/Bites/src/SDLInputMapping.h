@@ -65,6 +65,16 @@ namespace {
             out.tfinger.dy = in.tfinger.dy;
             out.tfinger.fingerId = in.tfinger.fingerId;
             break;
+		case SDL_TEXTEDITING:
+			out.type = OgreBites::TEXTEDITING;
+			out.edit.start = in.edit.start;
+			out.edit.length = in.edit.length;
+			OGRE_FALLTHROUGH;
+		case SDL_TEXTINPUT:
+			if (!out.type)
+				out.type = OgreBites::TEXTINPUT;
+			strcpy_s(out.edit.text, in.edit.text);
+			break;
         }
 
         return out;

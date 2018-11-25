@@ -219,7 +219,7 @@ namespace Ogre {
             String message = "Cannot assemble D3D9 shader " + mName + " Errors:\n" +
                 static_cast<const char*>(errors->GetBufferPointer());
             errors->Release();
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, message,
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, message + "\n" + mSource,
                 "D3D9GpuProgram::loadFromSource");
         }
         else

@@ -51,12 +51,12 @@ namespace Ogre
          A subdirectory inside the user's path to distinguish between
          different Ogre applications.
          */
-        FileSystemLayer(const Ogre::String& subdir)
+        FileSystemLayer(const Ogre::String& subdir, const Ogre::String& supdir = "Ogre")
         {
             // determine directories to search for config files
             getConfigPaths();
             // prepare write location in user directory
-            prepareUserHome(subdir);
+            prepareUserHome(subdir, supdir);
         }
         
         /** Search for the given config file in a set of predefined locations
@@ -156,7 +156,7 @@ namespace Ogre
         void getConfigPaths();
         
         /** Create an Ogre directory and the given subdir in the user's home. */
-        void prepareUserHome(const Ogre::String& subdir);
+        void prepareUserHome(const Ogre::String& subdir, const Ogre::String& supdir = "Ogre");
     };
 
 }

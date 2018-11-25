@@ -189,7 +189,7 @@ void GLArbGpuProgram::loadFromSource(void)
         // XXX New exception code?
         OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, 
             "Cannot load GL vertex program " + mName + 
-            ".  Line " + errPosStr + ":\n" + errStr, mName);
+            ".  Line " + errPosStr + ":\n" + errStr + "\n" + mSource, mName);
     }
     glBindProgramARB(getProgramType(), 0);
 }

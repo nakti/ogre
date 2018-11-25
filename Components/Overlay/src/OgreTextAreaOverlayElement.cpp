@@ -414,14 +414,21 @@ namespace Ogre {
 
     void TextAreaOverlayElement::setSpaceWidth( Real width )
     {
-        mSpaceWidthOverridden = true;
         if (mMetricsMode != GMM_RELATIVE)
         {
-            mPixelSpaceWidth = static_cast<unsigned short>(width);
+            if (mPixelSpaceWidth != static_cast<unsigned short>(width))
+			{
+				mPixelSpaceWidth = static_cast<unsigned short>(width);
+				mSpaceWidthOverridden = true;
+			}
         }
         else
         {
-            mSpaceWidth = width;
+			if (mSpaceWidth != width)
+			{
+				mSpaceWidth = width;
+				mSpaceWidthOverridden = true;
+			}
         }
 
         mGeomPositionsOutOfDate = true;
