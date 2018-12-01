@@ -162,9 +162,6 @@ namespace Ogre {
             // -----------------------------
             // Low-level overridden members
             // -----------------------------
-
-            bool areFixedFunctionLightsInViewSpace() const { return true; }
-
             void _setTexture(size_t unit, bool enabled, const TexturePtr &tex);
 
             void _setSampler(size_t unit, Sampler& sampler);
@@ -235,7 +232,6 @@ namespace Ogre {
             void unregisterThread();
             void preExtraThreadsStarted();
             void postExtraThreadsStarted();
-            void setClipPlanesImpl(const Ogre::PlaneList& planeList) {}
 
             // ----------------------------------
             // GLES2RenderSystem specific members

@@ -199,8 +199,6 @@ namespace Ogre
 #endif
 
     protected:
-        void setClipPlanesImpl(const PlaneList& clipPlanes);
-
         /**
          * With DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL flag render target views are unbound
          * from us each Present(), and we need the way to reestablish connection.
@@ -317,6 +315,7 @@ namespace Ogre
         void setVertexBufferBinding(VertexBufferBinding* binding);
         /** render using the feature of reading back the inactive depth-stencil buffers as texture*/
         void _renderUsingReadBackAsTexture(unsigned int passNr, Ogre::String variableName,unsigned int StartSlot);
+        void _dispatchCompute(const Vector3i& workgroupDim);
         void _render(const RenderOperation& op);
 
         void bindGpuProgram(GpuProgram* prg);

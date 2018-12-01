@@ -179,9 +179,6 @@ namespace Ogre {
         // -----------------------------
         // Low-level overridden members
         // -----------------------------
-
-        bool areFixedFunctionLightsInViewSpace() const { return true; }
-
         void _setTexture(size_t unit, bool enabled, const TexturePtr &tex);
 
         void _setSampler(size_t unit, Sampler& sampler);
@@ -236,6 +233,8 @@ namespace Ogre {
 
         void _setTextureLayerAnisotropy(size_t unit, unsigned int maxAnisotropy);
 
+        void _dispatchCompute(const Vector3i& workgroupDim);
+
         void _render(const RenderOperation& op);
 
         void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);
@@ -249,8 +248,6 @@ namespace Ogre {
         void unregisterThread();
         void preExtraThreadsStarted();
         void postExtraThreadsStarted();
-        void setClipPlanesImpl(const Ogre::PlaneList& planeList);
-
 
         // ----------------------------------
         // GL3PlusRenderSystem specific members

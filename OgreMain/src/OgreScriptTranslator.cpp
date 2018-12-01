@@ -517,10 +517,10 @@ namespace Ogre{
 
     template <typename T>
     static bool _getVector(AbstractNodeList::const_iterator i, AbstractNodeList::const_iterator end,
-                          std::vector<T>& vals, int count)
+                          std::vector<T>& vals, size_t count)
     {
         vals.reserve(count);
-        int n = 0;
+        size_t n = 0;
         while (n < count)
         {
             if (i != end)
@@ -535,6 +535,34 @@ namespace Ogre{
 
         vals.resize(count);
         return true;
+    }
+
+    static GpuProgramType getProgramType(int id)
+    {
+        switch(id)
+        {
+        default:
+            assert(false);
+            OGRE_FALLTHROUGH;
+        case ID_VERTEX_PROGRAM:
+        case ID_VERTEX_PROGRAM_REF:
+            return GPT_VERTEX_PROGRAM;
+        case ID_FRAGMENT_PROGRAM:
+        case ID_FRAGMENT_PROGRAM_REF:
+            return GPT_FRAGMENT_PROGRAM;
+        case ID_GEOMETRY_PROGRAM:
+        case ID_GEOMETRY_PROGRAM_REF:
+            return GPT_GEOMETRY_PROGRAM;
+        case ID_TESSELLATION_DOMAIN_PROGRAM:
+        case ID_TESSELLATION_DOMAIN_PROGRAM_REF:
+            return GPT_DOMAIN_PROGRAM;
+        case ID_TESSELLATION_HULL_PROGRAM:
+        case ID_TESSELLATION_HULL_PROGRAM_REF:
+            return GPT_HULL_PROGRAM;
+        case ID_COMPUTE_PROGRAM:
+        case ID_COMPUTE_PROGRAM_REF:
+            return GPT_COMPUTE_PROGRAM;
+        }
     }
 
     void ScriptTranslator::processNode(ScriptCompiler *compiler, const AbstractNodePtr &node)
@@ -1993,7 +2021,7 @@ namespace Ogre{
                     break;
                 case ID_MAX_LIGHTS:
                     if(getValue(prop, compiler, uival))
-                        mPass->setMaxSimultaneousLights(uival);
+                        mPass->setMaxSimultaneousLights(Math::uint16Cast(uival));
                     break;
                 case ID_START_LIGHT:
                     if(getValue(prop, compiler, uival))
@@ -2257,22 +2285,12 @@ namespace Ogre{
                 switch(child->id)
                 {
                 case ID_FRAGMENT_PROGRAM_REF:
-                    translateProgramRef(GPT_FRAGMENT_PROGRAM, compiler, child);
-                    break;
                 case ID_VERTEX_PROGRAM_REF:
-                    translateProgramRef(GPT_VERTEX_PROGRAM, compiler, child);
-                    break;
                 case ID_GEOMETRY_PROGRAM_REF:
-                    translateProgramRef(GPT_GEOMETRY_PROGRAM, compiler, child);
-                    break;
                 case ID_TESSELLATION_HULL_PROGRAM_REF:
-                    translateProgramRef(GPT_HULL_PROGRAM, compiler, child);
-                    break;
                 case ID_TESSELLATION_DOMAIN_PROGRAM_REF:
-                    translateProgramRef(GPT_DOMAIN_PROGRAM, compiler, child);
-                    break;
                 case ID_COMPUTE_PROGRAM_REF:
-                    translateProgramRef(GPT_COMPUTE_PROGRAM, compiler, child);
+                    translateProgramRef(getProgramType(child->id), compiler, child);
                     break;
                 case ID_SHADOW_CASTER_VERTEX_PROGRAM_REF:
                     translateShadowCasterVertexProgramRef(compiler, child);
@@ -2288,6 +2306,19 @@ namespace Ogre{
                     break;
                 default:
                     processNode(compiler, *i);
+                    break;
+                case ID_FRAGMENT_PROGRAM:
+                case ID_VERTEX_PROGRAM:
+                case ID_GEOMETRY_PROGRAM:
+                case ID_TESSELLATION_HULL_PROGRAM:
+                case ID_TESSELLATION_DOMAIN_PROGRAM:
+                case ID_COMPUTE_PROGRAM:
+                {
+                    // auto assign inline defined programs
+                    processNode(compiler, *i);
+                    GpuProgramType type = getProgramType(child->id);
+                    mPass->setGpuProgram(type, GpuProgramUsage::_getProgramByName(child->name, mPass->getResourceGroup(), type));
+                }
                 }
             }
         }
@@ -3717,7 +3748,7 @@ namespace Ogre{
         }
 
         std::vector<std::pair<PropertyAbstractNode*, String> > customParameters;
-        String source, profiles;
+        String source, profiles, target;
         AbstractNodePtr params;
         for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
         {
@@ -3757,6 +3788,8 @@ namespace Ogre{
 
                     if(prop->name == "profiles")
                         profiles = value;
+                    else if(prop->name == "target")
+                        target = value;
                     else
                         customParameters.push_back(std::make_pair(prop, value));
                 }
@@ -3802,6 +3835,10 @@ namespace Ogre{
         // special case for Cg
         if(!profiles.empty())
             prog->setParameter("profiles", profiles);
+
+        // special case for HLSL
+        if(!target.empty())
+            prog->setParameter("target", target);
 
         // Set the custom parameters
         for(const auto& p : customParameters)
@@ -5031,7 +5068,7 @@ namespace Ogre{
                                         return;
                                     }
 
-                                    depthBufferId = StringConverter::parseInt(atom->value);
+                                    depthBufferId = Math::uint16Cast(StringConverter::parseInt(atom->value));
                                 }
                                 break;
                             default:
@@ -5231,33 +5268,47 @@ namespace Ogre{
     {
         ObjectAbstractNode *obj = static_cast<ObjectAbstractNode*>(node.get());
 
-        CompositionTargetPass *target = any_cast<CompositionTargetPass*>(obj->parent->context);
-        mPass = target->createPass();
-        obj->context = Any(mPass);
-
         // The name is the type of the pass
-        if(obj->values.empty())
+        if(obj->values.empty() || obj->values.front()->type != ANT_ATOM)
         {
             compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, obj->file, obj->line);
             return;
         }
-        String type;
-        if(!getString(obj->values.front(), &type))
+
+        AtomAbstractNode* atom = static_cast<AtomAbstractNode*>(obj->values.front().get());
+
+        CompositionPass::PassType ptype;
+        switch(atom->id)
         {
-            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line);
-            return;
+            case ID_CLEAR:
+                ptype = CompositionPass::PT_CLEAR;
+                break;
+            case ID_STENCIL:
+                ptype = CompositionPass::PT_STENCIL;
+                break;
+            case ID_RENDER_QUAD:
+                ptype = CompositionPass::PT_RENDERQUAD;
+                break;
+            case ID_RENDER_SCENE:
+                ptype = CompositionPass::PT_RENDERSCENE;
+                break;
+            case ID_COMPUTE:
+                ptype = CompositionPass::PT_COMPUTE;
+                break;
+            case ID_RENDER_CUSTOM:
+                ptype = CompositionPass::PT_RENDERCUSTOM;
+                break;
+            default:
+                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line, atom->value);
+                return;
         }
 
-        if(type == "clear")
-            mPass->setType(CompositionPass::PT_CLEAR);
-        else if(type == "stencil")
-            mPass->setType(CompositionPass::PT_STENCIL);
-        else if(type == "render_quad")
-            mPass->setType(CompositionPass::PT_RENDERQUAD);
-        else if(type == "render_scene")
-            mPass->setType(CompositionPass::PT_RENDERSCENE);
-        else if(type == "render_custom") {
-            mPass->setType(CompositionPass::PT_RENDERCUSTOM);
+        CompositionTargetPass *target = any_cast<CompositionTargetPass*>(obj->parent->context);
+        mPass = target->createPass(ptype);
+        obj->context = Any(mPass);
+
+        if(mPass->getType() == CompositionPass::PT_RENDERCUSTOM) 
+        {
             String customType;
             //This is the ugly one liner for safe access to the second parameter.
             if (obj->values.size() < 2 || !getString(*(++(obj->values.begin())), &customType))
@@ -5266,12 +5317,6 @@ namespace Ogre{
                 return;
             }
             mPass->setCustomType(customType);
-        }
-        else
-        {
-            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line,
-                               "pass types must be \"clear\", \"stencil\", \"render_quad\", \"render_scene\" or \"render_custom\".");
-            return;
         }
 
         Real fval;
@@ -5438,6 +5483,13 @@ namespace Ogre{
                     if(getValue(prop, compiler, sval))
                         mPass->setMaterialScheme(sval);
                     break;
+                case ID_THREAD_GROUPS:
+                {
+                    std::vector<int> g;
+                    if(_getVector(prop->values.begin(), prop->values.end(), g, 3))
+                        mPass->setThreadGroups({g[0], g[1], g[2]});
+                    break;
+                }
                 case ID_QUAD_NORMALS:
                     if(prop->values.empty())
                     {
@@ -5453,7 +5505,7 @@ namespace Ogre{
                     {
                         if(prop->values.front()->type == ANT_ATOM)
                         {
-                            AtomAbstractNode *atom = static_cast<AtomAbstractNode*>(prop->values.front().get());
+                            atom = static_cast<AtomAbstractNode*>(prop->values.front().get());
                             if(atom->id == ID_CAMERA_FAR_CORNERS_VIEW_SPACE)
                                 mPass->setQuadFarCorners(true, true);
                             else if(atom->id == ID_CAMERA_FAR_CORNERS_WORLD_SPACE)

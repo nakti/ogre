@@ -3,6 +3,7 @@ Manual {#manual}
 
 - @subpage Introduction
 - @subpage The-Core-Objects
+- @subpage Resource-Management
 - @subpage Scripts
 - @subpage High-level-Programs
 - @subpage Runtime-Shader-Generation
@@ -274,11 +275,11 @@ There are a number of mesh tools available with OGRE to help you manipulate your
 
 For getting data out of modellers and into OGRE.
 
-</dd> <dt>[XMLConverter](#XMLConverter)</dt> <dd>
+</dd> <dt>[XMLConverter](@ref XMLConverter)</dt> <dd>
 
 For converting meshes and skeletons to/from XML.
 
-</dd> <dt>[MeshUpgrader](#MeshUpgrader)</dt> <dd>
+</dd> <dt>[MeshUpgrader](@ref MeshUpgrader)</dt> <dd>
 
 For upgrading binary meshes from one version of OGRE to another.
 
@@ -290,11 +291,11 @@ For upgrading binary meshes from one version of OGRE to another.
 
 Exporters are plugins to 3D modelling tools which write meshes and skeletal animation to file formats which OGRE can use for realtime rendering. The files the exporters write end in .mesh and .skeleton respectively.
 
-Each exporter has to be written specifically for the modeller in question, although they all use a common set of facilities provided by the classes MeshSerializer and SkeletonSerializer. They also normally require you to own the modelling tool.
+Each exporter has to be written specifically for the modeller in question, although they all use a common set of facilities provided by  Ogre::MeshSerializer and Ogre::SkeletonSerializer. They also normally require you to own the modelling tool.
 
 All the exporters here can be built from the source code, or you can download precompiled versions from the OGRE web site.
 
-# A Note About Modelling / Animation For OGRE
+## A Note About Modelling / Animation For OGRE
 
 There are a few rules when creating an animated model for OGRE:
 
@@ -304,7 +305,7 @@ There are a few rules when creating an animated model for OGRE:
 
 If you’re creating non-animated meshes, then you do not need to be concerned with the above.
 
-Full documentation for each exporter is provided along with the exporter itself, and there is a list of the currently supported modelling tools in the OGRE Wiki at <http://www.ogre3d.org/tikiwiki/tiki-index.php?page=OGRE+Exporters&structure=Tools>.
+Full documentation for each exporter is provided along with the exporter itself, and there is a [selection of the currently supported modelling tools at OGRECave](https://github.com/OGRECave).
 
 
 
@@ -315,14 +316,15 @@ The OgreXMLConverter tool can converter binary .mesh and .skeleton files to XML 
 Syntax:
 
 ```
-Usage: OgreXMLConverter sourcefile [destfile]
-sourcefile = name of file to convert
-destfile   = optional name of file to write to. If you don't
-             specify this OGRE works it out through the extension
-             and the XML contents if the source is XML. For example
-             test.mesh becomes test.xml, test.xml becomes test.mesh
-             if the XML document root is <mesh> etc.
+OgreXMLConverter [options] sourcefile [destfile] 
 ```
+
+@param sourcefile name of file to convert
+@param destfile optional name of file to write to. If you don't
+specify this OGRE works it out through the extension
+and the XML contents if the source is XML. For example
+test.mesh becomes test.xml, test.xml becomes test.mesh
+if the XML document root is mesh etc.
 
 When converting XML to .mesh, you will be prompted to (re)generate level-of-detail(LOD) information for the mesh - you can choose to skip this part if you wish, but doing it will allow you to make your mesh reduce in detail automatically when it is loaded into the engine. The engine uses a complex algorithm to determine the best parts of the mesh to reduce in detail depending on many factors such as the curvature of the surface, the edges of the mesh and seams at the edges of textures and smoothing groups - taking advantage of it is advised to make your meshes more scalable in real scenes.
 
@@ -332,8 +334,8 @@ When converting XML to .mesh, you will be prompted to (re)generate level-of-deta
 
 This tool is provided to allow you to upgrade your meshes when the binary format changes - sometimes we alter it to add new features and as such you need to keep your own assets up to date. This tools has a very simple syntax:
 
-```cpp
-OgreMeshUpgrader <oldmesh> <newmesh>
+```
+OgreMeshUpgrader [options] sourcefile [destfile]
 ```
 
 The OGRE release notes will notify you when this is necessary with a new release.
@@ -406,7 +408,7 @@ There are a number of issues to consider which are specific to stencil shadows:
 
 ## CPU Overhead
 
-Calculating the shadow volume for a mesh can be expensive, and it has to be done on the CPU, it is not a hardware accelerated feature. Therefore, you can find that if you overuse this feature, you can create a CPU bottleneck for your application. Ogre quite aggressively eliminates objects which cannot be casting shadows on the frustum, but there are limits to how much it can do, and large, elongated shadows (e.g. representing a very low sun position) are very difficult to cull efficiently. Try to avoid having too many shadow casters around at once, and avoid long shadows if you can. Also, make use of the ’shadow far distance’ parameter on the SceneManager, this can eliminate distant shadow casters from the shadow volume construction and save you some time, at the expense of only having shadows for closer objects. Lastly, make use of Ogre’s Level-Of-Detail (LOD) features; you can generate automatically calculated LODs for your meshes in code (see the Mesh API docs) or when using the mesh tools such as OgreXMLConverter and OgreMeshUpgrader. Alternatively, you can assign your own manual LODs by providing alternative mesh files at lower detail levels. Both methods will cause the shadow volume complexity to decrease as the object gets further away, which saves you valuable volume calculation time.
+Calculating the shadow volume for a mesh can be expensive, and it has to be done on the CPU, it is not a hardware accelerated feature. Therefore, you can find that if you overuse this feature, you can create a CPU bottleneck for your application. Ogre quite aggressively eliminates objects which cannot be casting shadows on the frustum, but there are limits to how much it can do, and large, elongated shadows (e.g. representing a very low sun position) are very difficult to cull efficiently. Try to avoid having too many shadow casters around at once, and avoid long shadows if you can. Also, make use of the ’shadow far distance’ parameter on the SceneManager, this can eliminate distant shadow casters from the shadow volume construction and save you some time, at the expense of only having shadows for closer objects. Lastly, make use of Ogre’s Level-Of-Detail (LOD) features; you can generate automatically calculated LODs for your meshes in code (see the Mesh API docs) or when using the mesh tools such as @ref XMLConverter and @ref MeshUpgrader. Alternatively, you can assign your own manual LODs by providing alternative mesh files at lower detail levels. Both methods will cause the shadow volume complexity to decrease as the object gets further away, which saves you valuable volume calculation time.
 
 <a name="Extrusion-distance"></a><a name="Extrusion-distance-1"></a>
 
@@ -424,7 +426,7 @@ Stencil shadow volumes rely very much on not being clipped by the far plane. Whe
 
 ## Mesh edge lists
 
-Stencil shadows can only be calculated when an ’edge list’ has been built for all the geometry in a mesh. The official exporters and tools automatically build this for you (or have an option to do so), but if you create your own meshes, you must remember to build edge lists for them before using them with stencil shadows - you can do that by using OgreMeshUpgrade or OgreXmlConverter, or by calling Mesh::buildEdgeList before you export or use the mesh. If a mesh doesn’t have edge lists, OGRE assumes that it is not supposed to cast stencil shadows.
+Stencil shadows can only be calculated when an ’edge list’ has been built for all the geometry in a mesh. The official exporters and tools automatically build this for you (or have an option to do so), but if you create your own meshes, you must remember to build edge lists for them before using them with stencil shadows - you can do that by using @ref MeshUpgrader, or by calling Ogre::Mesh::buildEdgeList before you export or use the mesh. If a mesh doesn’t have edge lists, OGRE assumes that it is not supposed to cast stencil shadows.
 
 <a name="The-Silhouette-Edge"></a><a name="The-Silhouette-Edge-1"></a>
 

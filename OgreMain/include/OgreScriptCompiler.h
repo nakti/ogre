@@ -865,6 +865,8 @@ namespace Ogre
         ID_LINE_WIDTH,
         ID_SAMPLER,
         ID_SAMPLER_REF,
+        ID_THREAD_GROUPS,
+        ID_RENDER_CUSTOM,
 
         ID_END_BUILTIN_IDS
     };

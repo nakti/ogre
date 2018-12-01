@@ -512,7 +512,7 @@ A pass is a single rendering action to be performed in a target pass.
 @par
 Format: ’pass’ (render\_quad | clear | stencil | render\_scene | render\_custom) \[custom name\] { }
 
-There are four types of pass:
+There are the following types of a pass:
 
 <dl compact="compact">
 <dt>clear</dt> <dd>
@@ -531,9 +531,13 @@ This kind of pass performs a regular rendering of the scene. It will use the [vi
 
 This kind of pass renders a quad over the entire render target, using a given material. You will undoubtedly want to pull in the results of other target passes into this operation to perform fullscreen effects.
 
+</dd> <dt>compute</dt> <dd>
+
+This kind of a pass dispatches a compute shader as attached to the given material. Compute shaders are independent from normal rendering pipeline as triggered by `render_scene` or `render_quad`. They do not have any predefined input/ outputs but rather read/ write to any buffers you attach to them.
+
 </dd> <dt>render\_custom</dt> <dd>
 
-This kind of pass is just a callback to user code for the composition pass specified in the custom name (and registered via CompositorManager::registerCustomCompositionPass) and allows the user to create custom render operations for more advanced effects. This is the only pass type that requires the custom name parameter.
+This kind of pass is just a callback to user code for the composition pass specified in the custom name (and registered via Ogre::CompositorManager::registerCustomCompositionPass) and allows the user to create custom render operations for more advanced effects. This is the only pass type that requires the custom name parameter.
 
 </dd> </dl>
 
@@ -544,6 +548,7 @@ Here are the attributes you can use in a ’pass’ section of a .compositor scr
 ## Available Pass Attributes
 
 -   [material](#material)
+-   [thread_groups](#thread_groups)
 -   [input](#compositor_005fpass_005finput)
 -   [identifier](#compositor_005fpass_005fidentifier)
 -   [first\_render\_queue](#first_005frender_005fqueue)
@@ -556,7 +561,23 @@ Here are the attributes you can use in a ’pass’ section of a .compositor scr
 
 ## material
 
-For passes of type ’render\_quad’, sets the material used to render the quad. You will want to use shaders in this material to perform fullscreen effects, and use the [input](#compositor_005fpass_005finput) attribute to map other texture targets into the texture bindings needed by this material. Format: material &lt;Name&gt;
+For passes of type `render_quad` and `compute`, sets the material to be used. With `compute` passes only the compute shader is used and pnly global auto parameter can be accessed.
+For `render_quad` you will want to use shaders in this material to perform fullscreen effects, and use the [input](#compositor_005fpass_005finput) attribute to map other texture targets into the texture bindings needed by this material. 
+
+@par
+Format: material &lt;Name&gt;
+
+<a name="thread_groups"></a>
+
+## thread_groups
+
+Passes of type `compute` operate on an absract "compute space". This space is typically diveded into threads and thread groups (work groups). The size of a thread group is defined inside the compute shader itself. This defines how many groups should be launched.
+
+@par
+Example: if you want to process a 256x256px image and have a thread group size of 16x16x1, you want to specify `16 16 1` here as well.
+
+@par
+Format: thread_groups &lt;groups_x&gt; &lt;groups_y&gt; &lt;groups_z&gt;
 
 <a name="compositor_005fpass_005finput"></a><a name="input-1"></a>
 
@@ -864,26 +885,23 @@ The overlay itself only has a single property ’zorder’ which determines how 
 
 Within an overlay, you can include any number of 2D or 3D elements. You do this by defining nested ’overlay_element’ blocks.
 
+@note Top level overlay components must derive from Ogre::OverlayContainer - e.g. you must place @ref TextArea into a @ref Panel component to be able to add it to the overlay.
+
 ## ’overlay_element’ blocks
 
 These are delimited by curly braces. The format for the header preceding the first brace is:
 
-overlay_element &lt;instance\_name&gt; &lt;type\_name&gt; \[: &lt;template\_name&gt;\]<br> { ...
+@par
+Format: overlay_element &lt;instance\_name&gt; &lt;type\_name&gt; \[: &lt;template\_name&gt;\]
 
-<dl compact="compact">
-<dt>type\_name</dt> <dd>
+@param type_name
+Must resolve to the name of a Ogre::OverlayElement type which has been registered with the Ogre::OverlayManager. Plugins register with the OverlayManager to advertise their ability to create elements, and at this time advertise the name of the type. OGRE comes preconfigured with types @ref Panel, @ref BorderPanel and @ref TextArea.
 
-Must resolve to the name of a OverlayElement type which has been registered with the OverlayManager. Plugins register with the OverlayManager to advertise their ability to create elements, and at this time advertise the name of the type. OGRE comes preconfigured with types ’Panel’, ’BorderPanel’ and ’TextArea’.
-
-</dd> <dt>instance\_name</dt> <dd>
-
+@param instance_name
 Must be a name unique among all other elements / containers by which to identify the element. Note that you can obtain a pointer to any named element by calling OverlayManager::getSingleton().getOverlayElement(name).
 
-</dd> <dt>template\_name</dt> <dd>
+@param template_name Optional template on which to base this item. See @ref Templates.
 
-Optional template on which to base this item. See templates.
-
-</dd> </dl>
 
 The properties which can be included within the braces depend on the custom type. However the following are always valid:
 
@@ -1116,15 +1134,15 @@ Default: none
 
 # Standard OverlayElements {#Standard-OverlayElements}
 
-Although OGRE’s OverlayElement and OverlayContainer classes are designed to be extended by applications developers, there are a few elements which come as standard with Ogre. These include:
+Although OGRE’s Ogre::OverlayElement and Ogre::OverlayContainer classes are designed to be extended by applications developers, there are a few elements which come as standard with Ogre. These include:
 
--   [Panel](#Panel)
--   [BorderPanel](#BorderPanel)
--   [TextArea](#TextArea)
+-   @ref Panel
+-   @ref BorderPanel
+-   @ref TextArea
 
 This section describes how you define their custom attributes in an .overlay script, but you can also change these custom properties in code if you wish. You do this by calling setParameter(param, value). You may wish to use the StringConverter class to convert your types to and from strings.
 
-## Panel {#Panel}
+## Panel (container) {#Panel}
 
 This is the most bog-standard container you can use. It is a rectangular area which can contain other elements (or containers) and may or may not have a background, which can be tiled however you like. The background material is determined by the material attribute, but is only displayed if transparency is off.
 
@@ -1134,7 +1152,7 @@ This is the most bog-standard container you can use. It is a rectangular area wh
 
 @param uv\_coords <b>&lt;topleft\_u&gt; &lt;topleft\_v&gt; &lt;bottomright\_u&gt; &lt;bottomright\_v&gt;</b> Sets the texture coordinates to use for this panel.
 
-## BorderPanel {#BorderPanel}
+## BorderPanel (container) {#BorderPanel}
 
 This is a slightly more advanced version of Panel, where instead of just a single flat panel, the panel has a separate border which resizes with the panel. It does this by taking an approach very similar to the use of HTML tables for bordered content: the panel is rendered as 9 square areas, with the center area being rendered with the main material (as with Panel) and the outer 8 areas (the 4 corners and the 4 edges) rendered with a separate border material. The advantage of rendering the corners separately from the edges is that the edge textures can be designed so that they can be stretched without distorting them, meaning the single texture can serve any size panel.
 
@@ -1146,7 +1164,7 @@ This is a slightly more advanced version of Panel, where instead of just a singl
 
 @param border\_left\_uv <b>&lt;u1&gt; &lt;v1&gt; &lt;u2&gt; &lt;v2&gt;</b> \[also border\_right\_uv, border\_top\_uv, border\_bottom\_uv\]; The texture coordinates to be used for the edge areas of the border. 4 coordinates are required, 2 for the top-left corner, 2 for the bottom-right. Note that you should design the texture so that the left & right edges can be stretched / squashed vertically and the top and bottom edges can be stretched / squashed horizontally without detrimental effects.
 
-## TextArea {#TextArea}
+## TextArea (element) {#TextArea}
 
 This is a generic element that you can use to render text. It uses fonts which can be defined in code using the FontManager and Font classes, or which have been predefined in .fontdef files. See the font definitions section for more information.
 
