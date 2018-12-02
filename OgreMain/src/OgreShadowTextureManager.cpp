@@ -108,7 +108,7 @@ namespace Ogre
                 TexturePtr shadowTex = TextureManager::getSingleton().createManual(
                     targName, 
                     ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME, 
-                    TEX_TYPE_2D, config.width, config.height, 0, config.format, 
+                    TEX_TYPE_CUBE_MAP, config.width, config.height, 0, config.format, 
                     TU_RENDERTARGET, NULL, false, config.fsaa);
                 // Ensure texture loaded
                 shadowTex->load();

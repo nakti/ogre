@@ -37,6 +37,15 @@ THE SOFTWARE.
 
 #include "OgreSpotShadowFadePng.h"
 
+#define CHECK_INTERSECTION_AND_BREAK(VOL, CAM, X, Y, RESULT, INTERSECT) { \
+RESULT = VOL.intersects(CAM->getCameraToViewportRay(X, Y)); \
+if (RESULT.first && (RESULT.second < CAM->getFarClipDistance() || CAM->getFarClipDistance() <= 0)) \
+{ \
+	intersect = true; \
+	break; \
+} \
+}
+
 
 namespace Ogre {
 SceneManager::ShadowRenderer::ShadowRenderer(SceneManager* owner) :
@@ -666,30 +675,31 @@ void SceneManager::ShadowRenderer::ensureShadowTexturesCreated()
             // Material names are global to SM, make specific
             String matName = shadowTex->getName() + "Mat" + mSceneManager->getName();
 
-            RenderTexture *shadowRTT = shadowTex->getBuffer()->getRenderTarget();
-
-            //Set appropriate depth buffer
-            shadowRTT->setDepthBufferPool( mSceneManager->mShadowTextureConfigList[__i].depthBufferPoolId );
-
             // Create camera for this texture, but note that we have to rebind
             // in prepareShadowTextures to coexist with multiple SMs
             Camera* cam = mSceneManager->createCamera(camName);
             cam->setAspectRatio((Real)shadowTex->getWidth() / (Real)shadowTex->getHeight());
             mShadowTextureCameras.push_back(cam);
 
-            // Create a viewport, if not there already
-            if (shadowRTT->getNumViewports() == 0)
-            {
-                // Note camera assignment is transient when multiple SMs
-                Viewport *v = shadowRTT->addViewport(cam);
-                v->setClearEveryFrame(true);
-                // remove overlays
-                v->setOverlaysEnabled(false);
-            }
+			for (unsigned int i = 0; i < shadowTex->getNumFaces(); i++) {
+				RenderTexture *shadowRTT = shadowTex->getBuffer(i)->getRenderTarget();
 
-            // Don't update automatically - we'll do it when required
-            shadowRTT->setAutoUpdated(false);
+				//Set appropriate depth buffer
+				shadowRTT->setDepthBufferPool(mSceneManager->mShadowTextureConfigList[__i].depthBufferPoolId);
 
+				// Create a viewport, if not there already
+				if (shadowRTT->getNumViewports() == 0)
+				{
+					// Note camera assignment is transient when multiple SMs
+					Viewport *v = shadowRTT->addViewport(cam);
+					v->setClearEveryFrame(true);
+					// remove overlays
+					v->setOverlaysEnabled(false);
+				}
+
+				// Don't update automatically - we'll do it when required
+				shadowRTT->setAutoUpdated(false);
+			}
             // Also create corresponding Material used for rendering this shadow
             MaterialPtr mat = MaterialManager::getSingleton().getByName(matName);
             if (!mat)
@@ -704,7 +714,8 @@ void SceneManager::ShadowRenderer::ensureShadowTexturesCreated()
                 mat->getTechnique(0)->getPass(0)->removeAllTextureUnitStates();
                 // create texture unit referring to render target texture
                 TextureUnitState* texUnit =
-                    p->createTextureUnitState(shadowTex->getName());
+                    p->createTextureUnitState();
+				texUnit->setCubicTexture(&shadowTex, true);
                 // set projective based on camera
                 texUnit->setProjectiveTexturing(!p->hasVertexProgram(), cam);
                 // clamp to border colour
@@ -849,43 +860,61 @@ void SceneManager::ShadowRenderer::prepareShadowTextures(Camera* cam, Viewport* 
             for (size_t j = 0; j < textureCountPerLight && si != siend; ++j)
             {
                 TexturePtr &shadowTex = *si;
-                RenderTarget *shadowRTT = shadowTex->getBuffer()->getRenderTarget();
-                Viewport *shadowView = shadowRTT->getViewport(0);
-                Camera *texCam = *ci;
-                // rebind camera, incase another SM in use which has switched to its cam
-                shadowView->setCamera(texCam);
+				for (unsigned int i = 0; i < (light->getType() == Light::LT_POINT ? 6 : 1) && i < shadowTex->getNumFaces(); i++) {
+					RenderTarget *shadowRTT = shadowTex->getBuffer(i)->getRenderTarget();
+					Viewport *shadowView = shadowRTT->getViewport(0);
+					Camera *texCam = *ci;
+					// rebind camera, incase another SM in use which has switched to its cam
+					shadowView->setCamera(texCam);
 
-                // Associate main view camera as LOD camera
-                texCam->setLodCamera(cam);
-                // set base
-                if (light->getType() != Light::LT_POINT)
-                    texCam->setDirection(light->getDerivedDirection());
-                if (light->getType() != Light::LT_DIRECTIONAL)
-                    texCam->setPosition(light->getDerivedPosition());
+					// Associate main view camera as LOD camera
+					texCam->setLodCamera(cam);
+					// set base
+					if (light->getType() != Light::LT_POINT)
+						texCam->setDirection(light->getDerivedDirection());
+					if (light->getType() != Light::LT_DIRECTIONAL)
+						texCam->setPosition(light->getDerivedPosition());
 
-                // Use the material scheme of the main viewport
-                // This is required to pick up the correct shadow_caster_material and similar properties.
-                shadowView->setMaterialScheme(vp->getMaterialScheme());
+					// Use the material scheme of the main viewport
+					// This is required to pick up the correct shadow_caster_material and similar properties.
+					shadowView->setMaterialScheme(vp->getMaterialScheme());
 
-                // update shadow cam - light mapping
-                ShadowCamLightMapping::iterator camLightIt = mShadowCamLightMapping.find( texCam );
-                assert(camLightIt != mShadowCamLightMapping.end());
-                camLightIt->second = light;
+					// update shadow cam - light mapping
+					ShadowCamLightMapping::iterator camLightIt = mShadowCamLightMapping.find(texCam);
+					assert(camLightIt != mShadowCamLightMapping.end());
+					camLightIt->second = light;
 
-                if (!light->getCustomShadowCameraSetup())
-                    mDefaultShadowCameraSetup->getShadowCamera(mSceneManager, cam, vp, light, texCam, j);
-                else
-                    light->getCustomShadowCameraSetup()->getShadowCamera(mSceneManager, cam, vp, light, texCam, j);
+					if (!light->getCustomShadowCameraSetup())
+						mDefaultShadowCameraSetup->getShadowCamera(mSceneManager, cam, vp, light, texCam, j+i);
+					else
+						light->getCustomShadowCameraSetup()->getShadowCamera(mSceneManager, cam, vp, light, texCam, j+i);
 
-                // Setup background colour
-                shadowView->setBackgroundColour(ColourValue::White);
+					//skip if camera doesn't affect viewport
+					PlaneBoundedVolume playerCam = cam->getCameraToViewportBoxVolume(0, 0, 1, 1, true);
+					PlaneBoundedVolume shadowCam = texCam->getCameraToViewportBoxVolume(0, 0, 1, 1, true);
+					bool intersect = false;
+					std::pair<bool, Real> result;
+					do {
+						CHECK_INTERSECTION_AND_BREAK(shadowCam, cam, 0, 0, result, intersect);
+						CHECK_INTERSECTION_AND_BREAK(shadowCam, cam, 0, 1, result, intersect);
+						CHECK_INTERSECTION_AND_BREAK(shadowCam, cam, 1, 0, result, intersect);
+						CHECK_INTERSECTION_AND_BREAK(shadowCam, cam, 1, 1, result, intersect);
+						CHECK_INTERSECTION_AND_BREAK(playerCam, texCam, 0, 0, result, intersect);
+						CHECK_INTERSECTION_AND_BREAK(playerCam, texCam, 0, 1, result, intersect);
+						CHECK_INTERSECTION_AND_BREAK(playerCam, texCam, 1, 0, result, intersect);
+						CHECK_INTERSECTION_AND_BREAK(playerCam, texCam, 1, 1, result, intersect);
+					}while(false);
+					if (!intersect)continue;
 
-                // Fire shadow caster update, callee can alter camera settings
-                mSceneManager->fireShadowTexturesPreCaster(light, texCam, j);
+					// Setup background colour
+					shadowView->setBackgroundColour(ColourValue::White);
 
-                // Update target
-                shadowRTT->update();
+					// Fire shadow caster update, callee can alter camera settings
+					mSceneManager->fireShadowTexturesPreCaster(light, texCam, j+i);
 
+					// Update target
+					shadowRTT->update();
+				}
                 ++si; // next shadow texture
                 ++ci; // next camera
             }
