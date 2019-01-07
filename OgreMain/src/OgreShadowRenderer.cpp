@@ -719,8 +719,7 @@ void SceneManager::ShadowRenderer::ensureShadowTexturesCreated()
                 // set projective based on camera
                 texUnit->setProjectiveTexturing(!p->hasVertexProgram(), cam);
                 // clamp to border colour
-                texUnit->setTextureAddressingMode(TextureUnitState::TAM_BORDER);
-                texUnit->setTextureBorderColour(ColourValue::White);
+                texUnit->setTextureAddressingMode(TextureUnitState::TAM_CLAMP);
                 mat->touch();
 
             }
@@ -860,7 +859,7 @@ void SceneManager::ShadowRenderer::prepareShadowTextures(Camera* cam, Viewport* 
             for (size_t j = 0; j < textureCountPerLight && si != siend; ++j)
             {
                 TexturePtr &shadowTex = *si;
-				for (unsigned int i = 0; i < (light->getType() == Light::LT_POINT ? 6 : 1) && i < shadowTex->getNumFaces(); i++) {
+				for (unsigned int i = 0; i < (light->getType() == Light::LT_POINT ? 6 : 6) && i < shadowTex->getNumFaces(); i++) {
 					RenderTarget *shadowRTT = shadowTex->getBuffer(i)->getRenderTarget();
 					Viewport *shadowView = shadowRTT->getViewport(0);
 					Camera *texCam = *ci;

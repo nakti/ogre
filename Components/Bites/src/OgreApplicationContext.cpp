@@ -743,8 +743,8 @@ void ApplicationContext::reconfigure(const Ogre::String &renderer, Ogre::NameVal
 
 void ApplicationContext::shutdown()
 {
-    const auto& gpuMgr = Ogre::GpuProgramManager::getSingleton();
-    if (gpuMgr.getSaveMicrocodesToCache() && gpuMgr.isCacheDirty())
+    const auto gpuMgr = Ogre::GpuProgramManager::getSingletonPtr();
+    if (gpuMgr && gpuMgr->getSaveMicrocodesToCache() && gpuMgr->isCacheDirty())
     {
         Ogre::String path = mFSLayer->getWritablePath(SHADER_CACHE_FILENAME);
         std::fstream outFile(path.c_str(), std::ios::out | std::ios::binary);
@@ -753,7 +753,7 @@ void ApplicationContext::shutdown()
         {
             Ogre::LogManager::getSingleton().logMessage("Writing shader cache to "+path);
             Ogre::DataStreamPtr ostream(new Ogre::FileStreamDataStream(path, &outFile, false));
-            gpuMgr.saveMicrocodeCache(ostream);
+            gpuMgr->saveMicrocodeCache(ostream);
         }
         else
             Ogre::LogManager::getSingleton().logWarning("Cannot open shader cache for writing "+path);
