@@ -64,6 +64,7 @@ struct MouseButtonEvent {
     int type;
     int x, y;
     unsigned char button;
+    unsigned char clicks;
 };
 struct MouseWheelEvent {
     int type;
@@ -110,7 +111,7 @@ enum {
     SDLK_F11,
     SDLK_F12,
     SDLK_PAGEUP = (1 << 30) | 75,
-    SDLK_PAGEDOWN = (1 << 30) | 77,
+    SDLK_PAGEDOWN = (1 << 30) | 78,
     SDLK_RIGHT = (1 << 30) | 79,
     SDLK_LEFT,
     SDLK_DOWN,

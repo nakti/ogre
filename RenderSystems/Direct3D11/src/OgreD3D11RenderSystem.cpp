@@ -2617,13 +2617,7 @@ namespace Ogre
         D3D11_PRIMITIVE_TOPOLOGY primType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
         DWORD primCount = 0;
 
-        // Handle computing
-        if(mBoundComputeProgram)
-        {
-            _dispatchCompute(Vector3i(mBoundComputeProgram->getComputeGroupDimensions()));
-            return;
-        }
-        else if(mBoundTessellationHullProgram && mBoundTessellationDomainProgram)
+        if(mBoundTessellationHullProgram && mBoundTessellationDomainProgram)
         {
             // useful primitives for tessellation
             switch( op.operationType )
@@ -3096,7 +3090,7 @@ namespace Ogre
         RenderSystem::unbindGpuProgram(gptype);
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::bindGpuProgramParameters(GpuProgramType gptype, GpuProgramParametersSharedPtr params, uint16 mask)
+    void D3D11RenderSystem::bindGpuProgramParameters(GpuProgramType gptype, const GpuProgramParametersPtr& params, uint16 mask)
     {
         if (mask & (uint16)GPV_GLOBAL)
         {

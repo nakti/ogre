@@ -48,6 +48,10 @@ if (RESULT.first && (RESULT.second < CAM->getFarClipDistance() || CAM->getFarCli
 
 
 namespace Ogre {
+
+GpuProgramParametersSharedPtr SceneManager::ShadowRenderer::msInfiniteExtrusionParams;
+GpuProgramParametersSharedPtr SceneManager::ShadowRenderer::msFiniteExtrusionParams;
+
 SceneManager::ShadowRenderer::ShadowRenderer(SceneManager* owner) :
 mSceneManager(owner),
 mShadowTechnique(SHADOWTYPE_NONE),
@@ -73,7 +77,7 @@ mShadowTextureFadeStart(0.7),
 mShadowTextureFadeEnd(0.9)
 {
     // set up default shadow camera setup
-    mDefaultShadowCameraSetup.reset(new DefaultShadowCameraSetup());
+    mDefaultShadowCameraSetup = DefaultShadowCameraSetup::create();
 
     // init shadow texture count per type.
     mShadowTextureCountPerType[Light::LT_POINT] = 1;
@@ -992,11 +996,11 @@ void SceneManager::ShadowRenderer::renderShadowVolumesToStencil(const Light* lig
         // Set params
         if (finiteExtrude)
         {
-            mShadowStencilPass->setVertexProgramParameters(mFiniteExtrusionParams);
+            mShadowStencilPass->setVertexProgramParameters(msFiniteExtrusionParams);
         }
         else
         {
-            mShadowStencilPass->setVertexProgramParameters(mInfiniteExtrusionParams);
+            mShadowStencilPass->setVertexProgramParameters(msInfiniteExtrusionParams);
         }
         if (mDebugShadows)
         {
@@ -1009,11 +1013,11 @@ void SceneManager::ShadowRenderer::renderShadowVolumesToStencil(const Light* lig
             // Set params
             if (finiteExtrude)
             {
-                mShadowDebugPass->setVertexProgramParameters(mFiniteExtrusionParams);
+                mShadowDebugPass->setVertexProgramParameters(msFiniteExtrusionParams);
             }
             else
             {
-                mShadowDebugPass->setVertexProgramParameters(mInfiniteExtrusionParams);
+                mShadowDebugPass->setVertexProgramParameters(msInfiniteExtrusionParams);
             }
         }
 
@@ -1475,21 +1479,21 @@ void SceneManager::ShadowRenderer::initShadowVolumeMaterials()
                 mShadowDebugPass->setGpuProgram(
                     GPT_VERTEX_PROGRAM, ShadowVolumeExtrudeProgram::get(Light::LT_POINT, false));
                 mShadowDebugPass->setGpuProgram(GPT_FRAGMENT_PROGRAM, ShadowVolumeExtrudeProgram::frgProgram);
-                mInfiniteExtrusionParams =
+                msInfiniteExtrusionParams =
                     mShadowDebugPass->getVertexProgramParameters();
-                mInfiniteExtrusionParams->setAutoConstant(0,
+                msInfiniteExtrusionParams->setAutoConstant(0,
                     GpuProgramParameters::ACT_WORLDVIEWPROJ_MATRIX);
-                mInfiniteExtrusionParams->setAutoConstant(4,
+                msInfiniteExtrusionParams->setAutoConstant(4,
                     GpuProgramParameters::ACT_LIGHT_POSITION_OBJECT_SPACE);
                 // Note ignored extra parameter - for compatibility with finite extrusion vertex program
-                mInfiniteExtrusionParams->setAutoConstant(5,
+                msInfiniteExtrusionParams->setAutoConstant(5,
                     GpuProgramParameters::ACT_SHADOW_EXTRUSION_DISTANCE);
 
                 try {
-                    mInfiniteExtrusionParams->setNamedAutoConstant(
+                    msInfiniteExtrusionParams->setNamedAutoConstant(
                         "worldviewproj_matrix",
                         GpuProgramParameters::ACT_WORLDVIEWPROJ_MATRIX);
-                    mInfiniteExtrusionParams->setNamedAutoConstant(
+                    msInfiniteExtrusionParams->setNamedAutoConstant(
                         "light_position_object_space",
                         GpuProgramParameters::ACT_LIGHT_POSITION_OBJECT_SPACE);
                 } catch(InvalidParametersException&) {} // ignore
@@ -1503,7 +1507,7 @@ void SceneManager::ShadowRenderer::initShadowVolumeMaterials()
 
             if (mDestRenderSystem->getCapabilities()->hasCapability(RSC_VERTEX_PROGRAM))
             {
-                mInfiniteExtrusionParams = mShadowDebugPass->getVertexProgramParameters();
+                msInfiniteExtrusionParams = mShadowDebugPass->getVertexProgramParameters();
             }
         }
     }
@@ -1529,24 +1533,24 @@ void SceneManager::ShadowRenderer::initShadowVolumeMaterials()
                 mShadowStencilPass->setGpuProgram(
                     GPT_VERTEX_PROGRAM, ShadowVolumeExtrudeProgram::get(Light::LT_POINT, true));
                 mShadowStencilPass->setGpuProgram(GPT_FRAGMENT_PROGRAM, ShadowVolumeExtrudeProgram::frgProgram);
-                mFiniteExtrusionParams =
+                msFiniteExtrusionParams =
                     mShadowStencilPass->getVertexProgramParameters();
-                mFiniteExtrusionParams->setAutoConstant(0,
+                msFiniteExtrusionParams->setAutoConstant(0,
                     GpuProgramParameters::ACT_WORLDVIEWPROJ_MATRIX);
-                mFiniteExtrusionParams->setAutoConstant(4,
+                msFiniteExtrusionParams->setAutoConstant(4,
                     GpuProgramParameters::ACT_LIGHT_POSITION_OBJECT_SPACE);
                 // Note extra parameter
-                mFiniteExtrusionParams->setAutoConstant(5,
+                msFiniteExtrusionParams->setAutoConstant(5,
                     GpuProgramParameters::ACT_SHADOW_EXTRUSION_DISTANCE);
 
                 try {
-                    mFiniteExtrusionParams->setNamedAutoConstant(
+                    msFiniteExtrusionParams->setNamedAutoConstant(
                         "worldviewproj_matrix",
                         GpuProgramParameters::ACT_WORLDVIEWPROJ_MATRIX);
-                    mFiniteExtrusionParams->setNamedAutoConstant(
+                    msFiniteExtrusionParams->setNamedAutoConstant(
                         "light_position_object_space",
                         GpuProgramParameters::ACT_LIGHT_POSITION_OBJECT_SPACE);
-                    mFiniteExtrusionParams->setNamedAutoConstant(
+                    msFiniteExtrusionParams->setNamedAutoConstant(
                         "shadow_extrusion_distance",
                         GpuProgramParameters::ACT_SHADOW_EXTRUSION_DISTANCE);
                 } catch(InvalidParametersException&) {} // ignore
@@ -1559,9 +1563,9 @@ void SceneManager::ShadowRenderer::initShadowVolumeMaterials()
         {
             mShadowStencilPass = matStencil->getTechnique(0)->getPass(0);
 
-            if (mDestRenderSystem->getCapabilities()->hasCapability(RSC_VERTEX_PROGRAM))
+            if (mDestRenderSystem->getCapabilities()->hasCapability(RSC_VERTEX_PROGRAM) && !msFiniteExtrusionParams)
             {
-                mFiniteExtrusionParams = mShadowStencilPass->getVertexProgramParameters();
+                msFiniteExtrusionParams = mShadowStencilPass->getVertexProgramParameters();
             }
         }
     }
@@ -1861,11 +1865,8 @@ const Pass* SceneManager::ShadowRenderer::deriveShadowReceiverPass(const Pass* p
         {
             return retPass = pass->getParent()->getShadowReceiverMaterial()->getBestTechnique()->getPass(0);
         }
-        else
-        {
-            retPass = mShadowTextureCustomReceiverPass ?
-                mShadowTextureCustomReceiverPass : mShadowReceiverPass;
-        }
+
+        retPass = mShadowTextureCustomReceiverPass ? mShadowTextureCustomReceiverPass : mShadowReceiverPass;
 
         // Does incoming pass have a custom shadow receiver program?
         if (!pass->getShadowReceiverVertexProgramName().empty())
@@ -1884,7 +1885,7 @@ const Pass* SceneManager::ShadowRenderer::deriveShadowReceiverPass(const Pass* p
         }
         else
         {
-            if (retPass == mShadowTextureCustomReceiverPass)
+            if (mShadowTextureCustomReceiverPass && retPass == mShadowTextureCustomReceiverPass)
             {
                 // reset vp?
                 if (mShadowTextureCustomReceiverPass->getVertexProgramName() !=

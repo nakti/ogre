@@ -35,6 +35,8 @@ THE SOFTWARE.
 // See http://msdn.microsoft.com/en-us/library/bb147178.aspx
 //-----------------------------------------------------------------------------
 
+#define M_PI 3.141592654
+
 //-----------------------------------------------------------------------------
 void SGX_TransformNormal(in mat4 m, 
 				   in vec3 v, 
@@ -91,7 +93,10 @@ void SGX_Light_Directional_DiffuseSpecular(
 	if (nDotL > 0.0)
 	{
 		vOutDiffuse  += vDiffuseColour * nDotL;		
-		vOutSpecular += vSpecularColour * pow(clamp(nDotH, 0.0, 1.0), fSpecularPower);						
+#ifdef NORMALISED
+		vSpecularColour *= (fSpecularPower + 8.0)/(8.0 * M_PI);
+#endif
+		vOutSpecular += vSpecularColour * pow(clamp(nDotH, 0.0, 1.0), fSpecularPower);
 	}
 	vOutDiffuse = clamp(vOutDiffuse, 0.0, 1.0);
 	vOutSpecular = clamp(vOutSpecular, 0.0, 1.0);
@@ -156,7 +161,10 @@ void SGX_Light_Point_DiffuseSpecular(
 		float fAtten	   = 1.0 / (vAttParams.y + vAttParams.z*fLightD + vAttParams.w*fLightD*fLightD);					
 		
 		vOutDiffuse  += vDiffuseColour * nDotL * fAtten;
-		vOutSpecular += vSpecularColour * pow(clamp(nDotH, 0.0, 1.0), fSpecularPower) * fAtten;					
+#ifdef NORMALISED
+		vSpecularColour *= (fSpecularPower + 8.0)/(8.0 * M_PI);
+#endif
+		vOutSpecular += vSpecularColour * pow(clamp(nDotH, 0.0, 1.0), fSpecularPower) * fAtten;
 	}
 	vOutDiffuse = clamp(vOutDiffuse, 0.0, 1.0);
 	vOutSpecular = clamp(vOutSpecular, 0.0, 1.0);
@@ -231,6 +239,9 @@ void SGX_Light_Spot_DiffuseSpecular(
 		float fSpotT	= pow(fSpotE, vSpotParams.z);	
 						
 		vOutDiffuse  += vDiffuseColour * nDotL * fAtten * fSpotT;
+#ifdef NORMALISED
+		vSpecularColour *= (fSpecularPower + 8.0)/(8.0 * M_PI);
+#endif
 		vOutSpecular += vSpecularColour * pow(clamp(nDotH, 0.0, 1.0), fSpecularPower) * fAtten * fSpotT;
 	}
 	vOutDiffuse = clamp(vOutDiffuse, 0.0, 1.0);
