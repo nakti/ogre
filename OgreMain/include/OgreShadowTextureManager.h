@@ -54,9 +54,10 @@ namespace Ogre
         PixelFormat format;
         unsigned int fsaa;
         uint16      depthBufferPoolId;
+		TextureType texType;
 
         ShadowTextureConfig()
-            : width(512), height(512), format(PF_X8R8G8B8), fsaa(0), depthBufferPoolId(1) {}
+            : width(512), height(512), format(PF_X8R8G8B8), fsaa(0), depthBufferPoolId(1), texType(TEX_TYPE_2D) {}
     };
 
     typedef std::vector<ShadowTextureConfig> ShadowTextureConfigList;

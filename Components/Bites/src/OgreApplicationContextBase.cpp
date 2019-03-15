@@ -21,9 +21,9 @@
 namespace OgreBites {
 
 static const char* SHADER_CACHE_FILENAME = "cache.bin";
-Ogre::String ApplicationContext::logFileName = "ogre.log";
-Ogre::String ApplicationContext::cfgFileName = "ogre.cfg";
-Ogre::String ApplicationContext::folderName = "Ogre";
+Ogre::String ApplicationContextBase::logFileName = "ogre.log";
+Ogre::String ApplicationContextBase::cfgFileName = "ogre.cfg";
+Ogre::String ApplicationContextBase::folderName = "Ogre";
 
 ApplicationContextBase::ApplicationContextBase(const Ogre::String& appName)
 {
@@ -281,14 +281,13 @@ void ApplicationContextBase::parseWindowOptions(uint32_t& w, uint32_t& h, Ogre::
 {
     const auto& ropts = mRoot->getRenderSystem()->getConfigOptions();
 
-	auto tW = w, tH = h;
-    if(tW == 0 && tW == 0)
+    if(w == 0 && h == 0)
     {
         std::istringstream mode(ropts.at("Video Mode").currentValue);
         Ogre::String token;
-        mode >> tW; // width
+        mode >> w; // width
         mode >> token; // 'x' as seperator between width and height
-        mode >> tH; // height
+        mode >> h; // height
     }
 
     if(miscParams.empty())
@@ -310,7 +309,7 @@ NativeWindowPair ApplicationContextBase::createWindow(const Ogre::String& name, 
     NativeWindowPair ret = {NULL, NULL};
     parseWindowOptions(w, h, miscParams);
 
-    ret.render = mRoot->createRenderWindow(name, tW, tH, false, &miscParams);
+    ret.render = mRoot->createRenderWindow(name, w, h, false, &miscParams);
     mWindows.push_back(ret);
 
     WindowEventUtilities::_addRenderWindow(ret.render);

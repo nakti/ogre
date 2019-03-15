@@ -65,7 +65,7 @@ namespace Ogre
                         if(i == end || ((*i)->type != TID_WORD && (*i)->type != TID_QUOTE))
                             OGRE_EXCEPT(Exception::ERR_INVALID_STATE, 
                                 Ogre::String("expected import target at line ") + 
-                                    Ogre::StringConverter::toString(node->line),
+                                    Ogre::StringConverter::toString(node->line) + Ogre::String(" in file ") + node->file,
                                 "ScriptParser::parse");
                         ConcreteNodePtr temp(OGRE_NEW ConcreteNode());
                         temp->parent = node.get();
@@ -84,7 +84,7 @@ namespace Ogre
                         if(i == end || ((*i)->type != TID_WORD && (*i)->type != TID_QUOTE))
                             OGRE_EXCEPT(Exception::ERR_INVALID_STATE, 
                                 Ogre::String("expected import source at line ") + 
-                                    Ogre::StringConverter::toString(node->line),
+                                    Ogre::StringConverter::toString(node->line) + Ogre::String(" in file ") + node->file,
                                 "ScriptParser::parse");
                         temp = ConcreteNodePtr(OGRE_NEW ConcreteNode());
                         temp->parent = node.get();
@@ -126,7 +126,7 @@ namespace Ogre
                         if(i == end || (*i)->type != TID_VARIABLE)
                             OGRE_EXCEPT(Exception::ERR_INVALID_STATE, 
                                 Ogre::String("expected variable name at line ") + 
-                                    Ogre::StringConverter::toString(node->line),
+                                    Ogre::StringConverter::toString(node->line) + Ogre::String(" in file ") + node->file,
                                 "ScriptParser::parse");
                         ConcreteNodePtr temp(OGRE_NEW ConcreteNode());
                         temp->parent = node.get();
@@ -141,7 +141,7 @@ namespace Ogre
                         if(i == end || ((*i)->type != TID_WORD && (*i)->type != TID_QUOTE))
                             OGRE_EXCEPT(Exception::ERR_INVALID_STATE, 
                                 Ogre::String("expected variable value at line ") + 
-                                    Ogre::StringConverter::toString(node->line),
+                                    Ogre::StringConverter::toString(node->line) + Ogre::String(" in file ") + node->file,
                                 "ScriptParser::parse");
                         temp = ConcreteNodePtr(OGRE_NEW ConcreteNode());
                         temp->parent = node.get();
@@ -265,7 +265,7 @@ namespace Ogre
                     if(j == end || ((*j)->type != TID_WORD && (*j)->type != TID_QUOTE)) {
                         OGRE_EXCEPT(Exception::ERR_INVALID_STATE, 
                             Ogre::String("expected object identifier at line ") + 
-                                    Ogre::StringConverter::toString(node->line),
+                                    Ogre::StringConverter::toString(node->line) + Ogre::String(" in file ") + node->file,
                             "ScriptParser::parse");
                     }
 
@@ -478,7 +478,7 @@ namespace Ogre
             default:
                 OGRE_EXCEPT(Exception::ERR_INVALID_STATE, 
                     Ogre::String("unexpected token") + token->lexeme + " at line " + 
-                        Ogre::StringConverter::toString(token->line),
+                        Ogre::StringConverter::toString(token->line) + Ogre::String(" in file ") + node->file,
                     "ScriptParser::parseChunk");
             }
 

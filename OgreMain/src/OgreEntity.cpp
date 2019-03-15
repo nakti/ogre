@@ -1496,7 +1496,7 @@ namespace Ogre {
     }
 
     //-----------------------------------------------------------------------
-    TagPoint* Entity::attachObjectToBone(const String &boneName, MovableObject *pMovable, const Quaternion &offsetOrientation, const Vector3 &offsetPosition)
+    TagPoint* Entity::attachObjectToBone(const String &boneName, MovableObject *pMovable, const Quaternion &offsetOrientation, const Vector3 &offsetPosition, const Vector3 &scale)
     {
         if (mChildObjectList.find(pMovable->getName()) != mChildObjectList.end())
         {
@@ -1522,7 +1522,7 @@ namespace Ogre {
         }
 
         TagPoint *tp = mSkeletonInstance->createTagPointOnBone(
-            bone, offsetOrientation, offsetPosition);
+            bone, offsetOrientation, offsetPosition, scale);
         tp->setParentEntity(this);
         tp->setChildObject(pMovable);
 

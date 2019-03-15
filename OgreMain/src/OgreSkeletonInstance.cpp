@@ -181,7 +181,8 @@ namespace Ogre {
     //-------------------------------------------------------------------------
     TagPoint* SkeletonInstance::createTagPointOnBone(Bone* bone,
         const Quaternion &offsetOrientation, 
-        const Vector3 &offsetPosition)
+        const Vector3 &offsetPosition,
+		const Vector3 &scale)
     {
         TagPoint* ret;
         if (mFreeTagPoints.empty()) {
@@ -202,7 +203,7 @@ namespace Ogre {
 
         ret->setPosition(offsetPosition);
         ret->setOrientation(offsetOrientation);
-        ret->setScale(Vector3::UNIT_SCALE);
+        ret->setScale(scale);
         ret->setBindingPose();
         bone->addChild(ret);
 

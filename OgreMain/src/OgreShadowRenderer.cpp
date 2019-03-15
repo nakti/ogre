@@ -83,6 +83,9 @@ mShadowTextureFadeEnd(0.9)
     mShadowTextureCountPerType[Light::LT_POINT] = 1;
     mShadowTextureCountPerType[Light::LT_DIRECTIONAL] = 1;
     mShadowTextureCountPerType[Light::LT_SPOTLIGHT] = 1;
+	mShadowTextureStartPerType[Light::LT_POINT] = 0;
+	mShadowTextureStartPerType[Light::LT_DIRECTIONAL] = 0;
+	mShadowTextureStartPerType[Light::LT_SPOTLIGHT] = 0;
 }
 
 SceneManager::ShadowRenderer::~ShadowRenderer() {}
@@ -860,9 +863,10 @@ void SceneManager::ShadowRenderer::prepareShadowTextures(Camera* cam, Viewport* 
 
             // texture iteration per light.
             size_t textureCountPerLight = mShadowTextureCountPerType[light->getType()];
+            size_t textureStartPerLight = mShadowTextureStartPerType[light->getType()];
             for (size_t j = 0; j < textureCountPerLight && si != siend; ++j)
             {
-                TexturePtr &shadowTex = *si;
+                TexturePtr &shadowTex = *(si + textureStartPerLight);
 				for (unsigned int i = 0; i < (light->getType() == Light::LT_POINT ? 6 : 6) && i < shadowTex->getNumFaces(); i++) {
 					RenderTarget *shadowRTT = shadowTex->getBuffer(i)->getRenderTarget();
 					Viewport *shadowView = shadowRTT->getViewport(0);
@@ -923,7 +927,7 @@ void SceneManager::ShadowRenderer::prepareShadowTextures(Camera* cam, Viewport* 
             }
 
             // set the first shadow texture index for this light.
-            mShadowTextureIndexLightList.push_back(shadowTextureIndex);
+            mShadowTextureIndexLightList.push_back(shadowTextureIndex + textureStartPerLight);
             shadowTextureIndex += textureCountPerLight;
         }
     }

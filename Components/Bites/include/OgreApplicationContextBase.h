@@ -280,6 +280,9 @@ namespace OgreBites
          */
         static Ogre::String getDefaultMediaDir();
     protected:
+		static Ogre::String logFileName;
+		static Ogre::String cfgFileName;
+		static Ogre::String folderName;
         Ogre::OverlaySystem* mOverlaySystem;  // Overlay system
 
         Ogre::FileSystemLayer* mFSLayer; // File system abstraction layer

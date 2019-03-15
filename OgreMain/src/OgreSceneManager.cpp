@@ -2227,7 +2227,8 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                 // potentially need to update content_type shadow texunit
                 // corresponding to this light
                 size_t textureCountPerLight = mShadowRenderer.mShadowTextureCountPerType[currLight->getType()];
-                for (size_t j = 0; j < textureCountPerLight && shadowTexIndex < mShadowRenderer.mShadowTextures.size(); ++j)
+                size_t textureStartPerLight = mShadowRenderer.mShadowTextureStartPerType[currLight->getType()];
+                for (size_t j = 0; j < textureCountPerLight && shadowTexIndex + textureStartPerLight < mShadowRenderer.mShadowTextures.size(); ++j)
                 {
                     // link the numShadowTextureLights'th shadow texture unit
                     ushort tuindex = pass->_getTextureUnitWithContentTypeIndex(
@@ -2235,7 +2236,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                     if (tuindex > pass->getNumTextureUnitStates()) break;
 
                     TextureUnitState* tu = pass->getTextureUnitState(tuindex);
-                    const TexturePtr& shadowTex = mShadowRenderer.mShadowTextures[shadowTexIndex];
+                    const TexturePtr& shadowTex = mShadowRenderer.mShadowTextures[shadowTexIndex + textureStartPerLight];
                     tu->_setTexturePtr(shadowTex);
                     Camera *cam = shadowTex->getBuffer()->getRenderTarget()->getViewport(0)->getCamera();
                     tu->setProjectiveTexturing(!pass->hasVertexProgram(), cam);
@@ -3592,7 +3593,7 @@ void SceneManager::setShadowIndexBufferSize(size_t size)
 }
 //---------------------------------------------------------------------
 void SceneManager::setShadowTextureConfig(size_t shadowIndex, unsigned short width, 
-    unsigned short height, PixelFormat format, unsigned short fsaa, uint16 depthBufferPoolId )
+    unsigned short height, PixelFormat format, unsigned short fsaa, uint16 depthBufferPoolId, TextureType texType)
 {
     ShadowTextureConfig conf;
     conf.width = width;
@@ -3600,6 +3601,7 @@ void SceneManager::setShadowTextureConfig(size_t shadowIndex, unsigned short wid
     conf.format = format;
     conf.fsaa = fsaa;
     conf.depthBufferPoolId = depthBufferPoolId;
+    conf.texType = texType;
 
     setShadowTextureConfig(shadowIndex, conf);
 
@@ -3704,9 +3706,12 @@ void SceneManager::setShadowTextureSettings(unsigned short size,
     }
 }
 //---------------------------------------------------------------------
-const TexturePtr& SceneManager::getShadowTexture(size_t shadowIndex)
+const TexturePtr& SceneManager::getShadowTexture(size_t shadowIndex, bool perType, Light::LightTypes type)
 {
-    if (shadowIndex >= mShadowTextureConfigList.size())
+	size_t tStart = 0;
+	if (perType) tStart = mShadowRenderer.mShadowTextureStartPerType[type];
+
+    if (shadowIndex + tStart >= mShadowTextureConfigList.size())
     {
         OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
             "shadowIndex out of bounds",
@@ -3714,7 +3719,8 @@ const TexturePtr& SceneManager::getShadowTexture(size_t shadowIndex)
     }
     mShadowRenderer.ensureShadowTexturesCreated();
 
-    return mShadowRenderer.mShadowTextures[shadowIndex];
+
+    return mShadowRenderer.mShadowTextures[shadowIndex + tStart];
 
 
 }

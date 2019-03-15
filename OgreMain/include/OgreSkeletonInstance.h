@@ -90,7 +90,8 @@ namespace Ogre {
         /** Creates a TagPoint ready to be attached to a bone */
         TagPoint* createTagPointOnBone(Bone* bone, 
             const Quaternion &offsetOrientation = Quaternion::IDENTITY, 
-            const Vector3 &offsetPosition = Vector3::ZERO);
+            const Vector3 &offsetPosition = Vector3::ZERO,
+			const Vector3 &scale = Vector3::UNIT_SCALE);
 
         /** Frees a TagPoint that already attached to a bone */
         void freeTagPoint(TagPoint* tagPoint);

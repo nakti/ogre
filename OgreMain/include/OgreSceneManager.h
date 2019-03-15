@@ -665,6 +665,7 @@ namespace Ogre {
 
             /// Array defining shadow count per light type.
             size_t mShadowTextureCountPerType[3];
+            size_t mShadowTextureStartPerType[3];
 
             /// default shadow camera setup
             ShadowCameraSetupPtr mDefaultShadowCameraSetup;
@@ -2740,7 +2741,8 @@ namespace Ogre {
         @param depthBufferPoolId The pool # it should query the depth buffers from
         */
         void setShadowTextureConfig(size_t shadowIndex, unsigned short width,
-            unsigned short height, PixelFormat format, unsigned short fsaa = 0, uint16 depthBufferPoolId=1);
+            unsigned short height, PixelFormat format, unsigned short fsaa = 0, uint16 depthBufferPoolId=1,
+			TextureType texType = TEX_TYPE_2D);
         /** Set the detailed configuration for a shadow texture.
         @param shadowIndex The index of the texture to configure, must be < the
             number of shadow textures setting
@@ -2798,6 +2800,24 @@ namespace Ogre {
         size_t getShadowTextureCountPerLightType(Light::LightTypes type) const
         {return mShadowRenderer.mShadowTextureCountPerType[type]; }
 
+		/** Set the starting index of shadow textures a light type uses.
+		@remarks
+			The default for all light types is 0. it means light would take every texture.
+		@note
+			This feature only works with the Integrated shadow technique.
+			Also remember to increase the total number of shadow textures you request
+			appropriately (e.g. via setShadowTextureCount)!!
+		*/
+		void setShadowTextureStartPerLightType(Light::LightTypes type, size_t count)
+		{
+			mShadowRenderer.mShadowTextureStartPerType[type] = count;
+		}
+		/// Get the number of shadow textures is assigned for the given light type.
+		size_t getShadowTextureStartPerLightType(Light::LightTypes type) const
+		{
+			return mShadowRenderer.mShadowTextureStartPerType[type];
+		}
+
         /** Sets the size and count of textures used in texture-based shadows. 
         @see setShadowTextureSize and setShadowTextureCount for details, this
             method just allows you to change both at once, which can save on
@@ -2814,7 +2834,7 @@ namespace Ogre {
             be correct, so be sure not to hold the returned reference over 
             texture shadow configuration changes.
         */
-        const TexturePtr& getShadowTexture(size_t shadowIndex);
+        const TexturePtr& getShadowTexture(size_t shadowIndex, bool perType = false, Light::LightTypes type = Light::LT_DIRECTIONAL);
 
         /** Sets the proportional distance which a texture shadow which is generated from a
             directional light will be offset into the camera view to make best use of texture space.

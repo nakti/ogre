@@ -46,11 +46,33 @@ NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, O
     if(ropts["Full Screen"].currentValue == "Yes"){
        flags = SDL_WINDOW_FULLSCREEN;
     } else {
-       flags = SDL_WINDOW_RESIZABLE;
+       flags = 0;
     }
 
-    ret.native = SDL_CreateWindow(name.c_str(),
-                                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags);
+	if (ropts["Full Screen"].currentValue != "Yes") {
+		ret.native = SDL_CreateWindow(name.c_str(),
+			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1, 1, flags);
+		int tTop, tBot, tLef, tRig, tW, tH;
+		SDL_Rect tScreen;
+		if (SDL_GetDisplayUsableBounds(SDL_GetWindowDisplayIndex(ret.native), &tScreen) >= 0)
+		{
+			SDL_GetWindowBordersSize(ret.native, &tTop, &tLef, &tBot, &tRig);
+			unsigned int tMaxW = tScreen.w - tLef - tRig;
+			unsigned int tMaxH = tScreen.h - tTop - tBot;
+			tW = w > tMaxW ? tMaxW : w;
+			tH = h > tMaxH ? tMaxH : h;
+			SDL_SetWindowSize(ret.native, tW, tH);
+			auto tX = (tMaxW - tW) / 2 + tScreen.x + tLef;
+			auto tY = (tMaxH - tH) / 2 + tScreen.y + tTop;
+			SDL_SetWindowPosition(ret.native, tX, tY);
+
+			SDL_SetWindowMinimumSize(ret.native, 400, 400);
+			SDL_SetWindowMaximumSize(ret.native, tMaxW, tMaxH);
+		}
+	}
+	else
+		ret.native = SDL_CreateWindow(name.c_str(),
+			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags);
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
     SDL_GL_CreateContext(ret.native);
