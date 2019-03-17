@@ -304,11 +304,11 @@ ParameterPtr Function::resolveInputParameter(Parameter::Semantic semantic,
         param = ParameterFactory::createInTangent(index);
         break;
     case Parameter::SPS_UNKNOWN:
+        OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "unknown semantic");
         break;
     }
 
-    if (param.get() != NULL)
-        addInputParameter(param);
+    addInputParameter(param);
 
     return param;
 }
@@ -410,11 +410,11 @@ ParameterPtr Function::resolveOutputParameter(Parameter::Semantic semantic,
         param = ParameterFactory::createOutTangent(index);
         break;
     case Parameter::SPS_UNKNOWN:
+        OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "unknown semantic");
         break;
     }
 
-    if (param.get() != NULL)
-        addOutputParameter(param);
+    addOutputParameter(param);
 
     return param;
 }
@@ -626,12 +626,6 @@ void Function::addAtomInstance(FunctionAtom* atomInstance)
 {
     mAtomInstances[atomInstance->getGroupExecutionOrder()].push_back(atomInstance);
     mSortedAtomInstances.clear();
-}
-
-//-----------------------------------------------------------------------------
-void Function::addAtomAssign(ParameterPtr lhs, ParameterPtr rhs, int groupOrder)
-{
-    addAtomInstance(OGRE_NEW AssignmentAtom(lhs, rhs, groupOrder));
 }
 
 //-----------------------------------------------------------------------------

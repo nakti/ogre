@@ -75,9 +75,9 @@ any non FFP SRS will automatically override the default SRS for the same stage. 
 
 Alternatively you can enable per-pixel lighting for one material only, by adding a `rtshader_system` section to the pass as following
 
-@snippet Samples/Media/RTShaderLib/materials/RTShaderSystem.material rtss_per_pixel
+@snippet Media/RTShaderLib/materials/RTShaderSystem.material rtss_per_pixel
 
-for more examples see `Samples/Media/RTShaderLib/materials/RTShaderSystem.material`.
+for more examples see `Media/RTShaderLib/materials/RTShaderSystem.material`.
 
 Here are the attributes you can use in a `rtshader_system` section of a .material script:
 
@@ -147,9 +147,9 @@ Valid values are [0; 0.57] not bigger to avoid division by zero
 <a name="integrated_pssm4"></a>
 
 ### integrated_pssm4
-Integrated PSSM shadow receiver with 3 splits. Custom split points.
+Integrated PSSM shadow receiver with 2 splits. Custom split points.
 @par
-Format: `integrated_pssm4 <sp0> <sp1> <sp2> <sp3>`
+Format: `integrated_pssm4 <znear> <sp0> <sp1> <zfar>`
 
 <a name="layered_blend"></a>
 

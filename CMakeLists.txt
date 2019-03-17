@@ -97,7 +97,7 @@ if (WIN32)
 endif ()
 
 # Set compiler specific build flags
-if (NOT ANDROID AND UNIX OR MINGW)
+if (NOT ANDROID AND NOT EMSCRIPTEN AND UNIX OR MINGW)
   include(CheckCXXCompilerFlag)
   check_cxx_compiler_flag(-msse OGRE_GCC_HAS_SSE)
   if (OGRE_GCC_HAS_SSE)
@@ -111,6 +111,9 @@ if(UNIX)
   if (EMSCRIPTEN)
       set(OGRE_WARNING_FLAGS "${OGRE_WARNING_FLAGS} -Wno-warn-absolute-paths")
   endif ()
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(OGRE_WARNING_FLAGS "${OGRE_WARNING_FLAGS} -Wno-inconsistent-missing-override")
+  endif()
   set(CMAKE_CXX_FLAGS "${OGRE_WARNING_FLAGS} ${CMAKE_CXX_FLAGS}")
 endif ()
 if (MSVC)
@@ -342,7 +345,9 @@ cmake_dependent_option(OGRE_BUILD_COMPONENT_OVERLAY "Build Overlay component" TR
 option(OGRE_BUILD_COMPONENT_HLMS "Build HLMS component" TRUE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_BITES "Build OgreBites component" TRUE "OGRE_BUILD_COMPONENT_OVERLAY" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_PYTHON "Build Python bindings" TRUE "NOT OGRE_STATIC" FALSE)
-option(OGRE_BUILD_COMPONENT_JAVA "Build Java (JNI) bindings" TRUE)
+if (NOT EMSCRIPTEN)
+  option(OGRE_BUILD_COMPONENT_JAVA "Build Java (JNI) bindings" TRUE)
+endif()
 cmake_dependent_option(OGRE_BUILD_COMPONENT_CSHARP "Build Csharp bindings" TRUE "NOT ANDROID" FALSE)
 option(OGRE_BUILD_COMPONENT_RTSHADERSYSTEM "Build RTShader System component" TRUE)
 cmake_dependent_option(OGRE_BUILD_RTSHADERSYSTEM_CORE_SHADERS "Build RTShader System FFP core shaders" TRUE "OGRE_BUILD_COMPONENT_RTSHADERSYSTEM" FALSE)
@@ -499,9 +504,10 @@ endif ()
 # Install documentation
 add_subdirectory(Docs)
 
-# Install media files
+# Install sample media files
+install(DIRECTORY Media/ShadowVolume DESTINATION "${OGRE_MEDIA_PATH}/")
 if (OGRE_INSTALL_SAMPLES OR OGRE_INSTALL_SAMPLES_SOURCE)
-  add_subdirectory(Samples/Media)
+  install(DIRECTORY Samples/Media/ DESTINATION ${OGRE_MEDIA_PATH})
 endif ()
 
 # Install CMake modules

@@ -55,7 +55,6 @@ namespace Ogre {
 
         void initConfigOptions();
         void refreshConfig();
-        NameValuePairList parseOptions(uint& w, uint& h, bool& fullscreen);
     public:
         struct VideoMode {
             uint32 width;
@@ -118,7 +117,7 @@ namespace Ogre {
         void reinitialise(void)
         {
             this->shutdown();
-            this->_initialise(true);
+            this->_initialise();
         }
 
         void _convertProjectionMatrix(const Matrix4& matrix, Matrix4& dest, bool)
@@ -126,18 +125,6 @@ namespace Ogre {
             // no conversion request for OpenGL
             dest = matrix;
         }
-
-        void _makeProjectionMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane,
-                                   Matrix4& dest, bool forGpuProgram = false);
-
-        void _makeProjectionMatrix(Real left, Real right, Real bottom, Real top,
-                                   Real nearPlane, Real farPlane, Matrix4& dest, bool forGpuProgram = false);
-
-        void _makeOrthoMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane,
-                              Matrix4& dest, bool forGpuProgram = false);
-
-        void _applyObliqueDepthProjection(Matrix4& matrix, const Plane& plane,
-                                          bool forGpuProgram);
 
         /** Create VAO on current context */
         virtual uint32 _createVao() { return 0; }

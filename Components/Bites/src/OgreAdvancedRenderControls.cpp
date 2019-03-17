@@ -183,8 +183,8 @@ bool AdvancedRenderControls::keyPressed(const KeyboardEvent& evt) {
         // Add per pixel lighting sub render state to the global scheme render state.
         // It will override the default FFP lighting sub render state.
         if (usePerPixelLighting) {
-            Ogre::RTShader::SubRenderState* perPixelLightModel =
-                mShaderGenerator->createSubRenderState(Ogre::RTShader::PerPixelLighting::Type);
+            Ogre::RTShader::PerPixelLighting* perPixelLightModel =
+                mShaderGenerator->createSubRenderState<Ogre::RTShader::PerPixelLighting>();
 
             schemRenderState->addTemplateSubRenderState(perPixelLightModel);
         }
@@ -192,17 +192,10 @@ bool AdvancedRenderControls::keyPressed(const KeyboardEvent& evt) {
 
         // Search the per pixel sub render state and remove it.
         else {
-            const Ogre::RTShader::SubRenderStateList& subRenderStateList =
-                schemRenderState->getTemplateSubRenderStateList();
-            Ogre::RTShader::SubRenderStateListConstIterator it = subRenderStateList.begin();
-            Ogre::RTShader::SubRenderStateListConstIterator itEnd = subRenderStateList.end();
-
-            for (; it != itEnd; ++it) {
-                Ogre::RTShader::SubRenderState* curSubRenderState = *it;
-
+            for (auto srs : schemRenderState->getTemplateSubRenderStateList()) {
                 // This is the per pixel sub render state -> remove it.
-                if (curSubRenderState->getType() == Ogre::RTShader::PerPixelLighting::Type) {
-                    schemRenderState->removeTemplateSubRenderState(*it);
+                if (dynamic_cast<Ogre::RTShader::PerPixelLighting*>(srs)) {
+                    schemRenderState->removeTemplateSubRenderState(srs);
                     break;
                 }
             }

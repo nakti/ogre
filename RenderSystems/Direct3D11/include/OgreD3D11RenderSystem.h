@@ -222,7 +222,7 @@ namespace Ogre
 
         // Overridden RenderSystem functions
         String validateConfigOptions(void);
-        RenderWindow* _initialise( bool autoCreateWindow, const String& windowTitle = "OGRE Render Window"  );
+        void _initialise() override;
         /// @copydoc RenderSystem::_createRenderWindow
         RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height, 
             bool fullScreen, const NameValuePairList *miscParams = 0);
@@ -298,13 +298,6 @@ namespace Ogre
         void _setDepthBufferFunction( CompareFunction func = CMPF_LESS_EQUAL );
         void _setDepthBias(float constantBias, float slopeScaleBias);
 		void _convertProjectionMatrix(const Matrix4& matrix, Matrix4& dest, bool forGpuProgram = false);
-        void _makeProjectionMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane, 
-            Matrix4& dest, bool forGpuProgram = false);
-        void _makeProjectionMatrix(Real left, Real right, Real bottom, Real top, Real nearPlane, 
-            Real farPlane, Matrix4& dest, bool forGpuProgram = false);
-        void _makeOrthoMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane, 
-            Matrix4& dest, bool forGpuProgram = false);
-        void _applyObliqueDepthProjection(Matrix4& matrix, const Plane& plane, bool forGpuProgram);
         void _setPolygonMode(PolygonMode level);
         void _setTextureUnitFiltering(size_t unit, FilterType ftype, FilterOptions filter);
         void _setTextureUnitCompareFunction(size_t unit, CompareFunction function);
