@@ -142,7 +142,7 @@ namespace Ogre {
             you don't want to get the same texture for both requests!
         */
         TexturePtr getPooledTexture(const String& name, const String& localName, 
-            size_t w, size_t h, 
+            uint32 w, uint32 h,
             PixelFormat f, uint aa, const String& aaHint, bool srgb, UniqueTextureSet& texturesAlreadyAssigned, 
             CompositorInstance* inst, CompositionTechnique::TextureScope scope);
 
@@ -269,7 +269,7 @@ namespace Ogre {
                 return false;
             }
         };
-        typedef std::map<TextureDef, TextureList*, TextureDefLess> TexturesByDef;
+        typedef std::map<TextureDef, TextureList, TextureDefLess> TexturesByDef;
         TexturesByDef mTexturesByDef;
 
         typedef std::pair<String, String> StringPair;

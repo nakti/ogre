@@ -163,7 +163,6 @@ namespace Ogre {
           mGLSLESCgProgramFactory(0),
 #endif
           mHardwareBufferManager(0),
-          mRTTManager(0),
           mCurTexMipCount(0)
     {
         size_t i;
@@ -200,6 +199,7 @@ namespace Ogre {
         mPolygonMode = GL_FILL;
         mCurrentVertexProgram = 0;
         mCurrentFragmentProgram = 0;
+        mRTTManager = NULL;
     }
 
     GLES2RenderSystem::~GLES2RenderSystem()
@@ -354,9 +354,6 @@ namespace Ogre {
         {
             rsc->setNumMultiRenderTargets(1);
         }
-
-        // Cube map
-        rsc->setCapability(RSC_CUBEMAPPING);
 
         // Stencil wrapping
         rsc->setCapability(RSC_STENCIL_WRAP);
@@ -693,7 +690,7 @@ namespace Ogre {
             GLES2DepthBuffer *depthBuffer = OGRE_NEW GLES2DepthBuffer( DepthBuffer::POOL_DEFAULT, this,
                                                             windowContext, 0, 0,
                                                             win->getWidth(), win->getHeight(),
-                                                            win->getFSAA(), 0, true );
+                                                            win->getFSAA(), true );
 
             mDepthBufferPool[depthBuffer->getPoolId()].push_back( depthBuffer );
 
@@ -708,9 +705,6 @@ namespace Ogre {
     {
         GLES2DepthBuffer *retVal = 0;
 
-        // Only FBO & pbuffer support different depth buffers, so everything
-        // else creates dummy (empty) containers
-        // retVal = mRTTManager->_createDepthBufferFor( renderTarget );
         if( auto fbo = dynamic_cast<GLRenderTarget*>(renderTarget)->getFBO() )
         {
             // Presence of an FBO means the manager is an FBO Manager, that's why it's safe to downcast
@@ -736,21 +730,16 @@ namespace Ogre {
 
             // No "custom-quality" multisample for now in GL
             retVal = OGRE_NEW GLES2DepthBuffer( 0, this, mCurrentContext, depthBuffer, stencilBuffer,
-                                        fbo->getWidth(), fbo->getHeight(), fbo->getFSAA(), 0, false );
+                                        fbo->getWidth(), fbo->getHeight(), fbo->getFSAA(), false );
         }
 
         return retVal;
     }
-    //---------------------------------------------------------------------
-    void GLES2RenderSystem::_getDepthStencilFormatFor( PixelFormat internalColourFormat, GLenum *depthFormat,
-                                                      GLenum *stencilFormat )
-    {
-        mRTTManager->getBestDepthStencil( internalColourFormat, depthFormat, stencilFormat );
-    }
 
     MultiRenderTarget* GLES2RenderSystem::createMultiRenderTarget(const String & name)
     {
-        MultiRenderTarget *retval = new GLES2FBOMultiRenderTarget(mRTTManager, name);
+        MultiRenderTarget* retval =
+            new GLES2FBOMultiRenderTarget(static_cast<GLES2FBOManager*>(mRTTManager), name);
         attachRenderTarget(*retval);
         return retval;
     }
@@ -1832,10 +1821,6 @@ namespace Ogre {
 
     void GLES2RenderSystem::_setRenderTarget(RenderTarget *target)
     {
-        // Unbind frame buffer object
-        if(mActiveRenderTarget && mRTTManager)
-            mRTTManager->unbind(mActiveRenderTarget);
-
         mActiveRenderTarget = target;
         if (target && mRTTManager)
         {
@@ -2132,7 +2117,7 @@ namespace Ogre {
         GLES2DepthBuffer *depthBuffer = OGRE_NEW GLES2DepthBuffer( DepthBuffer::POOL_DEFAULT, this,
                                                                   mMainContext, 0, 0,
                                                                   win->getWidth(), win->getHeight(),
-                                                                  win->getFSAA(), 0, true );
+                                                                  win->getFSAA(), true );
         
         mDepthBufferPool[depthBuffer->getPoolId()].push_back( depthBuffer );
         win->attachDepthBuffer( depthBuffer );

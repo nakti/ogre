@@ -161,7 +161,6 @@ namespace Ogre {
         mGpuProgramManager(0),
         mGLSLProgramFactory(0),
         mStateCacheManager(0),
-        mRTTManager(0),
         mActiveTextureUnit(0),
         mMaxBuiltInTextureAttribIndex(0)
     {
@@ -201,7 +200,7 @@ namespace Ogre {
         mCurrentVertexProgram = 0;
         mCurrentGeometryProgram = 0;
         mCurrentFragmentProgram = 0;
-
+        mRTTManager = NULL;
     }
 
     GLRenderSystem::~GLRenderSystem()
@@ -405,7 +404,6 @@ namespace Ogre {
         }
 
         rsc->setCapability(RSC_DOT3);
-        rsc->setCapability(RSC_CUBEMAPPING);
 
         // Point sprites
         if (GLEW_VERSION_2_0 || GLEW_ARB_point_sprite)
@@ -1127,7 +1125,7 @@ namespace Ogre {
             GLDepthBuffer *depthBuffer = new GLDepthBuffer( DepthBuffer::POOL_DEFAULT, this,
                                                             windowContext, 0, 0,
                                                             win->getWidth(), win->getHeight(),
-                                                            win->getFSAA(), 0, true );
+                                                            win->getFSAA(), true );
 
             mDepthBufferPool[depthBuffer->getPoolId()].push_back( depthBuffer );
 
@@ -1141,9 +1139,6 @@ namespace Ogre {
     {
         GLDepthBuffer *retVal = 0;
 
-        //Only FBO & pbuffer support different depth buffers, so everything
-        //else creates dummy (empty) containers
-        //retVal = mRTTManager->_createDepthBufferFor( renderTarget );
         if( auto fbo = dynamic_cast<GLRenderTarget*>(renderTarget)->getFBO() )
         {
             //Presence of an FBO means the manager is an FBO Manager, that's why it's safe to downcast
@@ -1169,16 +1164,17 @@ namespace Ogre {
 
             //No "custom-quality" multisample for now in GL
             retVal = new GLDepthBuffer( 0, this, mCurrentContext, depthBuffer, stencilBuffer,
-                                        fbo->getWidth(), fbo->getHeight(), fbo->getFSAA(), 0, false );
+                                        fbo->getWidth(), fbo->getHeight(), fbo->getFSAA(), false );
+        }
+        else
+        {
+            // Only FBO support different depth buffers, so everything
+            // else creates dummy (empty) containers
+            retVal = new GLDepthBuffer(0, this, mCurrentContext, NULL, NULL, renderTarget->getWidth(),
+                                       renderTarget->getHeight(), renderTarget->getFSAA(), false);
         }
 
         return retVal;
-    }
-    //---------------------------------------------------------------------
-    void GLRenderSystem::_getDepthStencilFormatFor( PixelFormat internalColourFormat, GLenum *depthFormat,
-                                                    GLenum *stencilFormat )
-    {
-        mRTTManager->getBestDepthStencil( internalColourFormat, depthFormat, stencilFormat );
     }
 
     void GLRenderSystem::initialiseContext(RenderWindow* primary)
