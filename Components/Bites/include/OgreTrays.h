@@ -300,10 +300,7 @@ namespace OgreBites
         /**
         Gets how many lines of text can fit in this window.
         */
-        unsigned int getHeightInLines()
-        {
-            return (unsigned int) ((mElement->getHeight() - 2 * mPadding - mCaptionBar->getHeight() + 5) / mTextArea->getCharHeight());
-        }
+		unsigned int getHeightInLines();
 
         void _cursorPressed(const Ogre::Vector2& cursorPos);
 
@@ -1141,19 +1138,19 @@ namespace OgreBites
         Processes mouse button down events. Returns true if the event was
         consumed and should not be passed on to other handlers.
         */
-        bool mousePressed(const MouseButtonEvent& evt);
+        virtual bool mousePressed(const MouseButtonEvent& evt);
 
         /**
         Processes mouse button up events. Returns true if the event was
         consumed and should not be passed on to other handlers.
         */
-        bool mouseReleased(const MouseButtonEvent& evt);
+		virtual bool mouseReleased(const MouseButtonEvent& evt);
 
         /**
         Updates cursor position. Returns true if the event was
         consumed and should not be passed on to other handlers.
         */
-        bool mouseMoved(const MouseMotionEvent& evt);
+		virtual bool mouseMoved(const MouseMotionEvent& evt);
 
     protected:
 

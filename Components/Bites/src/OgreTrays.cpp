@@ -93,7 +93,7 @@ Ogre::Real Widget::getCaptionWidth(const Ogre::DisplayString &caption, Ogre::Tex
 void Widget::fitCaptionToArea(const Ogre::DisplayString &caption, Ogre::TextAreaOverlayElement *area, Ogre::Real maxWidth)
 {
     Ogre::FontPtr f = area->getFont();
-    Ogre::String s = caption.asUTF8();
+    Ogre::UTFString s = caption.asUTF8();
 
     size_t nl = s.find('\n');
     if (nl != Ogre::String::npos) s = s.substr(0, nl);
@@ -317,8 +317,18 @@ void TextBox::refitContents()
 void TextBox::setScrollPercentage(Ogre::Real percentage)
 {
     mScrollPercentage = Ogre::Math::Clamp<Ogre::Real>(percentage, 0, 1);
-    mScrollHandle->setTop((int)(percentage * (mScrollTrack->getHeight() - mScrollHandle->getHeight())));
+    mScrollHandle->setTop((int)(mScrollPercentage * (mScrollTrack->getHeight() - mScrollHandle->getHeight())));
     filterLines();
+}
+
+
+/**
+Gets how many lines of text can fit in this window.
+*/
+
+inline unsigned int TextBox::getHeightInLines()
+{
+	return (unsigned int)Ogre::Math::Clamp<long>((mElement->getHeight() - 2 * mPadding - mCaptionBar->getHeight() + 5) / mTextArea->getCharHeight(), 0, INT_MAX);
 }
 
 void TextBox::_cursorPressed(const Ogre::Vector2 &cursorPos)
@@ -676,9 +686,15 @@ void SelectMenu::_cursorMoved(const Ogre::Vector2 &cursorPos, float wheelDelta)
             if (newIndex != mDisplayIndex) setDisplayIndex(newIndex);
             return;
         }
+#if !OGRE_BITES_HAVE_SDL
         else if(fabsf(wheelDelta) > 0.5f * 120.0f) // seems that OIS uses click == WHEEL_DELTA == 120 for all platforms
         {
             int newIndex = Ogre::Math::Clamp<int>(mDisplayIndex + (wheelDelta > 0 ? -1 : 1), 0, (int)(mItems.size() - mItemElements.size()));
+#else
+		else if (fabsf(wheelDelta) > 0.5f) // SDL has normal wheel events
+		{
+			int newIndex = Ogre::Math::Clamp<int>(mDisplayIndex + wheelDelta, 0, (int)(mItems.size() - mItemElements.size()));
+#endif
             Ogre::Real lowerBoundary = mScrollTrack->getHeight() - mScrollHandle->getHeight();
             mScrollHandle->setTop((int)(newIndex * lowerBoundary / (mItems.size() - mItemElements.size())));
             setDisplayIndex(newIndex);

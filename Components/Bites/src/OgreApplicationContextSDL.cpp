@@ -59,8 +59,8 @@ NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, O
 			SDL_GetWindowBordersSize(ret.native, &tTop, &tLef, &tBot, &tRig);
 			unsigned int tMaxW = tScreen.w - tLef - tRig;
 			unsigned int tMaxH = tScreen.h - tTop - tBot;
-			tW = p.width > tMaxW ? tMaxW : w;
-			tH = p.height > tMaxH ? tMaxH : h;
+			tW = p.width > tMaxW ? tMaxW : p.width;
+			tH = p.height > tMaxH ? tMaxH : p.height;
 			SDL_SetWindowSize(ret.native, tW, tH);
 			auto tX = (tMaxW - tW) / 2 + tScreen.x + tLef;
 			auto tY = (tMaxH - tH) / 2 + tScreen.y + tTop;
