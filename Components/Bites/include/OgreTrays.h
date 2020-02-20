@@ -559,6 +559,15 @@ namespace OgreBites
             mDragging = false;
         }
 
+		Ogre::Real getMinValue() const
+		{
+			return mMinValue;
+		}
+		Ogre::Real getMaxValue() const
+		{
+			return mMaxValue;
+		}
+
     protected:
 
         /**
@@ -1154,6 +1163,8 @@ namespace OgreBites
         consumed and should not be passed on to other handlers.
         */
         bool mouseMoved(const MouseMotionEvent& evt);
+
+		virtual bool mouseWheelRolled(const MouseWheelEvent& evt) override;
 
     protected:
 

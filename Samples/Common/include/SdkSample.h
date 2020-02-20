@@ -115,13 +115,14 @@ namespace OgreBites
             {
                 if (!mTrayMgr->isDialogVisible() && mInfo["Help"] != "") mTrayMgr->showOkDialog("Help", mInfo["Help"]);
                 else mTrayMgr->closeDialog();
+				return true;
             }
 
             if (mTrayMgr->isDialogVisible()) return true;   // don't process any more keys if dialog is up
 
             mControls->keyPressed(evt);
             mCameraMan->keyPressed(evt);
-            return true;
+            return false;
         }
 
         virtual bool keyReleased(const KeyboardEvent& evt)
@@ -193,6 +194,7 @@ namespace OgreBites
         }
 
         virtual bool mouseWheelRolled(const MouseWheelEvent& evt) {
+			if (mTrayMgr->mouseWheelRolled(evt)) return true;
             mCameraMan->mouseWheelRolled(evt);
             return true;
         }

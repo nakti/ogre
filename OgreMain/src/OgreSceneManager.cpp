@@ -645,9 +645,11 @@ ParticleSystem* SceneManager::createParticleSystem(const String& name,
 {
     NameValuePairList params;
     params["templateName"] = templateName;
+
+	String tName = (name == "") ? mMovableNameGenerator.generate() : name;
     
     return static_cast<ParticleSystem*>(
-        createMovableObject(name, ParticleSystemFactory::FACTORY_TYPE_NAME, 
+        createMovableObject(tName, ParticleSystemFactory::FACTORY_TYPE_NAME,
             &params));
 }
 //-----------------------------------------------------------------------

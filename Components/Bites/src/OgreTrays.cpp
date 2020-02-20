@@ -99,7 +99,8 @@ Ogre::Real Widget::getCaptionWidth(const Ogre::DisplayString &caption, Ogre::Tex
 void Widget::fitCaptionToArea(const Ogre::DisplayString &caption, Ogre::TextAreaOverlayElement *area, Ogre::Real maxWidth)
 {
     Ogre::FontPtr f = area->getFont();
-    Ogre::String s = DISPLAY_STRING_TO_STRING(caption);
+    //Ogre::String s = DISPLAY_STRING_TO_STRING(caption);
+	auto s = caption;
 
     size_t nl = s.find('\n');
     if (nl != Ogre::String::npos) s = s.substr(0, nl);
@@ -323,7 +324,7 @@ void TextBox::refitContents()
 void TextBox::setScrollPercentage(Ogre::Real percentage)
 {
     mScrollPercentage = Ogre::Math::Clamp<Ogre::Real>(percentage, 0, 1);
-    mScrollHandle->setTop((int)(percentage * (mScrollTrack->getHeight() - mScrollHandle->getHeight())));
+    mScrollHandle->setTop((int)(mScrollPercentage * (mScrollTrack->getHeight() - mScrollHandle->getHeight())));
     filterLines();
 }
 
@@ -682,9 +683,15 @@ void SelectMenu::_cursorMoved(const Ogre::Vector2 &cursorPos, float wheelDelta)
             if (newIndex != mDisplayIndex) setDisplayIndex(newIndex);
             return;
         }
-        else if(fabsf(wheelDelta) > 0.5f * 120.0f) // seems that OIS uses click == WHEEL_DELTA == 120 for all platforms
-        {
-            int newIndex = Ogre::Math::Clamp<int>(mDisplayIndex + (wheelDelta > 0 ? -1 : 1), 0, (int)(mItems.size() - mItemElements.size()));
+#if !OGRE_BITES_HAVE_SDL
+		else if (fabsf(wheelDelta) > 0.5f * 120.0f) // seems that OIS uses click == WHEEL_DELTA == 120 for all platforms
+		{
+			int newIndex = Ogre::Math::Clamp<int>(mDisplayIndex + (wheelDelta > 0 ? -1 : 1), 0, (int)(mItems.size() - mItemElements.size()));
+#else
+		else if (fabsf(wheelDelta) > 0.5f) // SDL has normal wheel events
+		{
+			int newIndex = Ogre::Math::Clamp<int>(mDisplayIndex - wheelDelta, 0, (int)(mItems.size() - mItemElements.size()));
+#endif
             Ogre::Real lowerBoundary = mScrollTrack->getHeight() - mScrollHandle->getHeight();
             mScrollHandle->setTop((int)(newIndex * lowerBoundary / (mItems.size() - mItemElements.size())));
             setDisplayIndex(newIndex);
@@ -2170,6 +2177,45 @@ bool TrayManager::mouseMoved(const MouseMotionEvent &evt)
 
     if (mTrayDrag) return true;  // don't pass this event on if we're in the middle of a drag
     return false;
+}
+
+bool TrayManager::mouseWheelRolled(const MouseWheelEvent& evt)
+{
+	float wheelDelta = evt.y;
+
+	if (mExpandedMenu)   // only check top priority widget until it passes on
+	{
+		mExpandedMenu->_cursorMoved(mCursorPos, wheelDelta);
+		return true;
+	}
+
+	if (mDialog)   // only check top priority widget until it passes on
+	{
+		mDialog->_cursorMoved(mCursorPos, wheelDelta);
+		if (mOk) mOk->_cursorMoved(mCursorPos, wheelDelta);
+		else
+		{
+			mYes->_cursorMoved(mCursorPos, wheelDelta);
+			mNo->_cursorMoved(mCursorPos, wheelDelta);
+		}
+		return true;
+	}
+
+	// process trays and widgets in reverse ZOrder
+	for (int i = 9; i >= 0; --i)
+	{
+		if (!mTrays[i]->isVisible()) continue;
+
+		for (int j = (int)mWidgets[i].size() - 1; j >= 0; --j)
+		{
+			if (j >= (int)mWidgets[i].size()) continue;
+			Widget * w = mWidgets[i][j];
+			if (!w->getOverlayElement()->isVisible()) continue;
+			w->_cursorMoved(mCursorPos, wheelDelta);    // send event to widget
+		}
+	}
+
+	return false;
 }
 
 void TrayManager::setExpandedMenu(SelectMenu *m)
