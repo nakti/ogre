@@ -65,6 +65,7 @@ namespace Ogre {
     {
         unsigned int width;
         unsigned int height;
+		TextureType texType;
         PixelFormat format;
         unsigned int fsaa;
         uint16      depthBufferPoolId;
@@ -782,7 +783,7 @@ namespace Ogre {
 
             void setShadowIndexBufferSize(size_t size);
 
-            const TexturePtr& getShadowTexture(size_t shadowIndex);
+            const TexturePtr& getShadowTexture(size_t shadowIndex, bool perType, Light::LightTypes lightType);
             void setShadowTextureSettings(uint16 size, uint16 count, PixelFormat fmt, uint16 fsaa,
                                           uint16 depthBufferPoolId);
             void setShadowTextureSize(unsigned short size);
@@ -791,7 +792,7 @@ namespace Ogre {
             void setShadowTextureFSAA(unsigned short fsaa);
             void setShadowTextureConfig(size_t shadowIndex, const ShadowTextureConfig& config);
             void setShadowTextureConfig(size_t shadowIndex, uint16 width, uint16 height, PixelFormat format,
-                                        uint16 fsaa, uint16 depthBufferPoolId);
+                                        uint16 fsaa, uint16 depthBufferPoolId, TextureType texType);
         } mShadowRenderer;
 
         /** Internal method to validate whether a Pass should be allowed to render.
@@ -2746,7 +2747,7 @@ namespace Ogre {
         void setShadowTextureConfig(size_t shadowIndex, uint16 width, uint16 height, PixelFormat format,
                                     uint16 fsaa = 0, uint16 depthBufferPoolId = 1, TextureType texType = TEX_TYPE_2D)
         {
-            mShadowRenderer.setShadowTextureConfig(shadowIndex, width, height, format, fsaa, depthBufferPoolId);
+            mShadowRenderer.setShadowTextureConfig(shadowIndex, width, height, format, fsaa, depthBufferPoolId, texType);
         }
         /** Set the detailed configuration for a shadow texture.
         @param shadowIndex The index of the texture to configure, must be < the
@@ -2851,7 +2852,10 @@ namespace Ogre {
             be correct, so be sure not to hold the returned reference over 
             texture shadow configuration changes.
         */
-        const TexturePtr& getShadowTexture(size_t shadowIndex, bool perType = false, Light::LightTypes type = Light::LT_DIRECTIONAL);
+        const TexturePtr& getShadowTexture(size_t shadowIndex, bool perType = false, Light::LightTypes lightType = Light::LightTypes::LT_DIRECTIONAL)
+        {
+            return mShadowRenderer.getShadowTexture(shadowIndex, perType, lightType);
+        }
 
         /** Sets the proportional distance which a texture shadow which is generated from a
             directional light will be offset into the camera view to make best use of texture space.

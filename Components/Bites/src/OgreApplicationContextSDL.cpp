@@ -71,8 +71,7 @@ NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, O
 		}
 	}
 	else
-		ret.native = SDL_CreateWindow(name.c_str(),
-			SDL_WINDOWPOS_UNDEFINED, p.width, p.height, SDL_WINDOW_FULLSCREEN);
+		ret.native = SDL_CreateWindow(name.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, p.width, p.height, SDL_WINDOW_FULLSCREEN);
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
     SDL_GL_CreateContext(ret.native);

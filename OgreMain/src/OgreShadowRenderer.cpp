@@ -695,7 +695,7 @@ void SceneManager::ShadowRenderer::ensureShadowTexturesCreated()
 
 				//Set appropriate depth buffer
 				if(!PixelUtil::isDepth(shadowRTT->suggestPixelFormat()))
-					shadowRTT->setDepthBufferPool(mSceneManager->mShadowTextureConfigList[__i].depthBufferPoolId);
+					shadowRTT->setDepthBufferPool(mShadowTextureConfigList[__i].depthBufferPoolId);
 
 				// Create a viewport, if not there already
 				if (shadowRTT->getNumViewports() == 0)
@@ -2075,13 +2075,14 @@ void SceneManager::ShadowRenderer::setShadowIndexBufferSize(size_t size)
 }
 //---------------------------------------------------------------------
 void SceneManager::ShadowRenderer::setShadowTextureConfig(size_t shadowIndex, unsigned short width,
-    unsigned short height, PixelFormat format, unsigned short fsaa, uint16 depthBufferPoolId )
+    unsigned short height, PixelFormat format, unsigned short fsaa, uint16 depthBufferPoolId, TextureType texType)
 {
     ShadowTextureConfig conf;
     conf.width = width;
     conf.height = height;
     conf.format = format;
     conf.fsaa = fsaa;
+	conf.texType = texType;
     conf.depthBufferPoolId = depthBufferPoolId;
 
     setShadowTextureConfig(shadowIndex, conf);
@@ -2180,7 +2181,7 @@ void SceneManager::ShadowRenderer::setShadowTextureSettings(unsigned short size,
     }
 }
 //---------------------------------------------------------------------
-const TexturePtr& SceneManager::ShadowRenderer::getShadowTexture(size_t shadowIndex)
+const TexturePtr& SceneManager::ShadowRenderer::getShadowTexture(size_t shadowIndex, bool perType, Light::LightTypes lightType)
 {
     if (shadowIndex >= mShadowTextureConfigList.size())
     {
