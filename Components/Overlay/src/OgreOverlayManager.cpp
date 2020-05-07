@@ -144,6 +144,14 @@ namespace Ogre {
         }
 
     }
+
+    void OverlayManager::addOverlay(Overlay* overlay)
+    {
+        bool succ = mOverlayMap.emplace(overlay->getName(), overlay).second;
+        if(succ) return;
+        OGRE_EXCEPT(Exception::ERR_DUPLICATE_ITEM,
+                    "Overlay with name '" + overlay->getName() + "' already exists!");
+    }
     //---------------------------------------------------------------------
     void OverlayManager::destroy(const String& name)
     {
@@ -322,7 +330,7 @@ namespace Ogre {
         OverlayElement* newElem = createOverlayElementFromFactory(typeName, instanceName);
 
         // Register
-        elementMap.insert(ElementMap::value_type(instanceName, newElem));
+        elementMap.emplace(instanceName, newElem);
 
         return newElem;
 

@@ -134,6 +134,7 @@ if(SDL2_FOUND OR EMSCRIPTEN)
 endif()
 
 # generate OgreBuildSettings.h
+configure_file(${OGRE_TEMPLATES_DIR}/OgreComponents.h.in ${PROJECT_BINARY_DIR}/include/OgreComponents.h @ONLY)
 configure_file(${OGRE_TEMPLATES_DIR}/OgreBuildSettings.h.in ${PROJECT_BINARY_DIR}/include/OgreBuildSettings.h @ONLY)
 configure_file(${OGRE_TEMPLATES_DIR}/OgreRTShaderConfig.h.in ${PROJECT_BINARY_DIR}/include/OgreRTShaderConfig.h @ONLY)
 configure_file(${OGRE_TEMPLATES_DIR}/OgreGLES2Config.h.in ${PROJECT_BINARY_DIR}/include/OgreGLES2Config.h @ONLY)
@@ -159,9 +160,7 @@ if (UNIX)
 
   set(OGRE_ADDITIONAL_LIBS "")
   set(OGRE_ADDITIONAL_INCLUDE_DIRS "")
-  if (APPLE AND NOT APPLE_IOS)
-    set(OGRE_ADDITIONAL_INCLUDE_DIRS "-I\${includedir}/OGRE/OSX")
-  endif ()
+
   set(OGRE_CFLAGS "")
   set(OGRE_PREFIX_PATH ${CMAKE_INSTALL_PREFIX})
   if (OGRE_CONFIG_THREADS GREATER 0)

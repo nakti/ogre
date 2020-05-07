@@ -70,13 +70,9 @@ namespace Ogre {
             return GL_POINTS;
         case RenderOperation::OT_LINE_STRIP:
             return GL_LINE_STRIP;
+        default:
         case RenderOperation::OT_TRIANGLE_STRIP:
             return GL_TRIANGLE_STRIP;
-        default:
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
-                "Geometry shader output operation type can only be point list,"
-                "line strip or triangle strip",
-                            "GLSLLinkProgram::getGLGeometryOutputPrimitiveType");
         }
     }
 
@@ -123,7 +119,8 @@ namespace Ogre {
             }
 
             if ( GpuProgramManager::getSingleton().canGetCompiledShaderBuffer() &&
-                 GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(hash) )
+                 GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(hash) &&
+                 !mGeometryProgram)
             {
                 getMicrocodeFromCache(hash);
             }
@@ -405,29 +402,6 @@ namespace Ogre {
             } // fromProgType == currentUniform->mSourceProgType
   
         } // end for
-    }
-    //-----------------------------------------------------------------------
-    void GLSLLinkProgram::updatePassIterationUniforms(GpuProgramParametersSharedPtr params)
-    {
-        if (params->hasPassIterationNumber())
-        {
-            size_t index = params->getPassIterationNumberIndex();
-
-            GLUniformReferenceIterator currentUniform = mGLUniformReferences.begin();
-            GLUniformReferenceIterator endUniform = mGLUniformReferences.end();
-
-            // need to find the uniform that matches the multi pass entry
-            for (;currentUniform != endUniform; ++currentUniform)
-            {
-                // get the index in the parameter real list
-                if (index == currentUniform->mConstantDef->physicalIndex)
-                {
-                    glUniform1fvARB(currentUniform->mLocation, 1, params->getFloatPointer(index));
-                    return;
-                }
-            }
-        }
-
     }
     //-----------------------------------------------------------------------
     Ogre::String GLSLLinkProgram::getCombinedName()

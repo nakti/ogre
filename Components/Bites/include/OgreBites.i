@@ -1,8 +1,9 @@
-%module(directors="1") OgreBites
+%module(package="Ogre", directors="1") Bites
 %{
 /* Includes the header in the wrapper code */
 #include "Ogre.h"
 #include "OgreBuildSettings.h"
+#include "OgreComponents.h"
 #include "OgreApplicationContextBase.h"
 #include "OgreApplicationContext.h"
 #include "OgreSGTechniqueResolverListener.h"
@@ -11,6 +12,8 @@
 #include "OgreAdvancedRenderControls.h"
 #include "OgreUnifiedHighLevelGpuProgram.h"
 #include "OgrePredefinedControllers.h"
+
+#include "OgreImGuiInputListener.h"
 %}
 
 %include std_string.i
@@ -24,6 +27,10 @@
 %feature("director") OgreBites::ApplicationContextBase;
 %feature("director") OgreBites::InputListener;
 %include "OgreInput.h"
+
+#ifdef HAVE_IMGUI
+%include "OgreImGuiInputListener.h"
+#endif
 
 #ifdef __ANDROID__
 %{
@@ -52,6 +59,7 @@ JNIEnv* OgreJNIGetEnv();
 %rename(ApplicationContext) ApplicationContextSDL; // keep the pre 1.12 name
 #endif
 
+%include "OgreComponents.h"
 %include "OgreApplicationContextBase.h"
 %include "OgreApplicationContext.h"
 %include "OgreCameraMan.h"

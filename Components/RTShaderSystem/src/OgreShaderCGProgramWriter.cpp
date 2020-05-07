@@ -54,6 +54,7 @@ void CGProgramWriter::initializeStringMaps()
     mGpuConstTypeMap[GCT_FLOAT4] = "float4";
     mGpuConstTypeMap[GCT_SAMPLER1D] = "sampler1D";
     mGpuConstTypeMap[GCT_SAMPLER2D] = "sampler2D";
+    mGpuConstTypeMap[GCT_SAMPLER2DSHADOW] = "sampler2D";
     mGpuConstTypeMap[GCT_SAMPLER3D] = "sampler3D";
     mGpuConstTypeMap[GCT_SAMPLERCUBE] = "samplerCUBE";
     mGpuConstTypeMap[GCT_MATRIX_2X2] = "float2x2";
@@ -171,7 +172,7 @@ void CGProgramWriter::writeProgramDependencies(std::ostream& os, Program* progra
 }
 
 //-----------------------------------------------------------------------
-void CGProgramWriter::writeUniformParameter(std::ostream& os, UniformParameterPtr parameter)
+void CGProgramWriter::writeUniformParameter(std::ostream& os, const UniformParameterPtr& parameter)
 {
     os << mGpuConstTypeMap[parameter->getType()];
     os << "\t"; 

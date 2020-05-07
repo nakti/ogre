@@ -50,7 +50,12 @@ namespace Ogre {
             createSphere(mesh);
             return true;
         }
-    
+        else if(resourceName == "Prefab_Axes" || resourceName == "Ogre/Debug/AxesMesh")
+        {
+            createAxes(mesh);
+            return true;
+        }
+
         return false;
     }
     //---------------------------------------------------------------------
@@ -85,12 +90,9 @@ namespace Ogre {
 
         //! [vertex_decl]
         size_t offset = 0;
-        decl->addElement(0, offset, VET_FLOAT3, VES_POSITION);
-        offset += VertexElement::getTypeSize(VET_FLOAT3);
-        decl->addElement(0, offset, VET_FLOAT3, VES_NORMAL);
-        offset += VertexElement::getTypeSize(VET_FLOAT3);
-        decl->addElement(0, offset, VET_FLOAT2, VES_TEXTURE_COORDINATES, 0);
-        offset += VertexElement::getTypeSize(VET_FLOAT2);
+        offset += decl->addElement(0, offset, VET_FLOAT3, VES_POSITION).getSize();
+        offset += decl->addElement(0, offset, VET_FLOAT3, VES_NORMAL).getSize();
+        offset += decl->addElement(0, offset, VET_FLOAT2, VES_TEXTURE_COORDINATES, 0).getSize();
         //! [vertex_decl]
 
         //! [vertex_buffer]
@@ -223,12 +225,9 @@ namespace Ogre {
         VertexBufferBinding* bind = mesh->sharedVertexData->vertexBufferBinding;
 
         size_t offset = 0;
-        decl->addElement(0, offset, VET_FLOAT3, VES_POSITION);
-        offset += VertexElement::getTypeSize(VET_FLOAT3);
-        decl->addElement(0, offset, VET_FLOAT3, VES_NORMAL);
-        offset += VertexElement::getTypeSize(VET_FLOAT3);
-        decl->addElement(0, offset, VET_FLOAT2, VES_TEXTURE_COORDINATES, 0);
-        offset += VertexElement::getTypeSize(VET_FLOAT2);
+        offset += decl->addElement(0, offset, VET_FLOAT3, VES_POSITION).getSize();
+        offset += decl->addElement(0, offset, VET_FLOAT3, VES_NORMAL).getSize();
+        offset += decl->addElement(0, offset, VET_FLOAT2, VES_TEXTURE_COORDINATES, 0).getSize();
 
         HardwareVertexBufferSharedPtr vbuf = 
             HardwareBufferManager::getSingleton().createVertexBuffer(
@@ -294,14 +293,9 @@ namespace Ogre {
         // define the vertex format
         VertexDeclaration* vertexDecl = vertexData->vertexDeclaration;
         size_t currOffset = 0;
-        // positions
-        vertexDecl->addElement(0, currOffset, VET_FLOAT3, VES_POSITION);
-        currOffset += VertexElement::getTypeSize(VET_FLOAT3);
-        // normals
-        vertexDecl->addElement(0, currOffset, VET_FLOAT3, VES_NORMAL);
-        currOffset += VertexElement::getTypeSize(VET_FLOAT3);
-        // two dimensional texture coordinates
-        vertexDecl->addElement(0, currOffset, VET_FLOAT2, VES_TEXTURE_COORDINATES, 0);
+        currOffset += vertexDecl->addElement(0, currOffset, VET_FLOAT3, VES_POSITION).getSize();
+        currOffset += vertexDecl->addElement(0, currOffset, VET_FLOAT3, VES_NORMAL).getSize();
+        currOffset += vertexDecl->addElement(0, currOffset, VET_FLOAT2, VES_TEXTURE_COORDINATES, 0).getSize();
 
         // allocate the vertex buffer
         vertexData->vertexCount = (NUM_RINGS + 1) * (NUM_SEGMENTS+1);
@@ -368,4 +362,75 @@ namespace Ogre {
         mesh->_setBoundingSphereRadius(SPHERE_RADIUS);
     }
     //---------------------------------------------------------------------
+    void PrefabFactory::createAxes(Mesh* mesh)
+    {
+        ManualObject mo("");
+        mo.begin("BaseWhite");
+        /* 3 axes, each made up of 2 of these (base plane = XY)
+         *   .------------|\
+         *   '------------|/
+         */
+        mo.estimateVertexCount(7 * 2 * 3);
+        mo.estimateIndexCount(3 * 2 * 3);
+        Quaternion quat[6];
+        ColourValue col[3];
+
+        // x-axis
+        quat[0] = Quaternion::IDENTITY;
+        quat[1].FromAxes(Vector3::UNIT_X, Vector3::NEGATIVE_UNIT_Z, Vector3::UNIT_Y);
+        col[0] = ColourValue::Red;
+        col[0].a = 0.8;
+        // y-axis
+        quat[2].FromAxes(Vector3::UNIT_Y, Vector3::NEGATIVE_UNIT_X, Vector3::UNIT_Z);
+        quat[3].FromAxes(Vector3::UNIT_Y, Vector3::UNIT_Z, Vector3::UNIT_X);
+        col[1] = ColourValue::Green;
+        col[1].a = 0.8;
+        // z-axis
+        quat[4].FromAxes(Vector3::UNIT_Z, Vector3::UNIT_Y, Vector3::NEGATIVE_UNIT_X);
+        quat[5].FromAxes(Vector3::UNIT_Z, Vector3::UNIT_X, Vector3::UNIT_Y);
+        col[2] = ColourValue::Blue;
+        col[2].a = 0.8;
+
+        Vector3 basepos[7] =
+        {
+            // stalk
+            Vector3(0, 0.05, 0),
+            Vector3(0, -0.05, 0),
+            Vector3(0.7, -0.05, 0),
+            Vector3(0.7, 0.05, 0),
+            // head
+            Vector3(0.7, -0.15, 0),
+            Vector3(1, 0, 0),
+            Vector3(0.7, 0.15, 0)
+        };
+
+
+        // vertices
+        // 6 arrows
+        for (size_t i = 0; i < 6; ++i)
+        {
+            // 7 points
+            for (size_t p = 0; p < 7; ++p)
+            {
+                Vector3 pos = quat[i] * basepos[p];
+                mo.position(pos);
+                mo.colour(col[i / 2]);
+            }
+        }
+
+        // indices
+        // 6 arrows
+        for (uint32 i = 0; i < 6; ++i)
+        {
+            uint32 base = i * 7;
+            mo.triangle(base + 0, base + 1, base + 2);
+            mo.triangle(base + 0, base + 2, base + 3);
+            mo.triangle(base + 4, base + 5, base + 6);
+        }
+
+        auto sm = mesh->createSubMesh();
+        mo.end()->convertToSubMesh(sm);
+        mesh->_setBounds(mo.getBoundingBox());
+        mesh->_setBoundingSphereRadius(mo.getBoundingRadius());
+    }
 }

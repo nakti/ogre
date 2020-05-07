@@ -42,7 +42,7 @@ namespace Ogre {
             {GL_NONE},                                           // PF_UNKNOWN
             {GL_RED, GL_UNSIGNED_BYTE, GL_R8},                   // PF_L8
             {GL_RED, GL_UNSIGNED_SHORT, GL_R16UI},               // PF_L16
-            {GL_ALPHA, GL_UNSIGNED_BYTE, GL_R8},                 // PF_A8
+            {GL_RED, GL_UNSIGNED_BYTE, GL_R8},                   // PF_A8
             {GL_RG, GL_UNSIGNED_BYTE, GL_RG8},                   // PF_BYTE_LA
             {GL_RGB, GL_UNSIGNED_SHORT_5_6_5, GL_RGB565},        // PF_R5G6B5
             {GL_NONE},                                           // PF_B5G6R5
@@ -264,6 +264,7 @@ namespace Ogre {
             {GL_NONE, GL_NONE, GL_COMPRESSED_RGBA_ASTC_10x10_KHR},// PF_ASTC_RGBA_10X10_LDR
             {GL_NONE, GL_NONE, GL_COMPRESSED_RGBA_ASTC_12x10_KHR},// PF_ASTC_RGBA_12X10_LDR
             {GL_NONE, GL_NONE, GL_COMPRESSED_RGBA_ASTC_12x12_KHR},// PF_ASTC_RGBA_12X12_LDR
+            {GL_NONE, GL_NONE, GL_NONE}, // PF_DEPTH32
     };
 
     void GLES2PixelUtil::useSizedFormats()
@@ -280,7 +281,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------------
     GLenum GLES2PixelUtil::getGLOriginFormat(PixelFormat pf)
     {
-        OgreAssertDbg(sizeof(_pixelFormats)/sizeof(GLPixelFormatDescription) == PF_COUNT, "Did you add a new format?");
+        static_assert(sizeof(_pixelFormats)/sizeof(GLPixelFormatDescription) == PF_COUNT, "Did you add a new format?");
         return _pixelFormats[pf].format;
     }
     //-----------------------------------------------------------------------------

@@ -45,6 +45,7 @@ namespace Ogre
     */
 
     class AndroidLogListener;
+    class ShadowTextureManager;
 
     typedef std::vector<RenderSystem*> RenderSystemList;
     
@@ -66,6 +67,10 @@ namespace Ogre
         // To allow update of active renderer if
         // RenderSystem::initialise is used directly
         friend class RenderSystem;
+    public:
+        typedef std::map<String, MovableObjectFactory*> MovableObjectFactoryMap;
+        typedef std::vector<DynLib*> PluginLibList;
+        typedef std::vector<Plugin*> PluginInstanceList;
     protected:
         RenderSystemList mRenderers;
         RenderSystem* mActiveRenderer;
@@ -97,7 +102,6 @@ namespace Ogre
         std::unique_ptr<ArchiveFactory> mZipArchiveFactory;
         std::unique_ptr<ArchiveManager> mArchiveManager;
 
-        typedef std::map<String, MovableObjectFactory*> MovableObjectFactoryMap;
         MovableObjectFactoryMap mMovableObjectFactoryMap;
         std::unique_ptr<MovableObjectFactory> mRibbonTrailFactory;
         std::unique_ptr<MovableObjectFactory> mBillboardChainFactory;
@@ -129,9 +133,6 @@ namespace Ogre
         bool mRemoveQueueStructuresOnClear;
         Real mDefaultMinPixelSize;
 
-    public:
-        typedef std::vector<DynLib*> PluginLibList;
-        typedef std::vector<Plugin*> PluginInstanceList;
     protected:
         /// List of plugin DLLs loaded
         PluginLibList mPluginLibs;
@@ -580,6 +581,13 @@ namespace Ogre
         RenderWindow* createRenderWindow(const String &name, unsigned int width, unsigned int height, 
             bool fullScreen, const NameValuePairList *miscParams = 0) ;
 
+        /// @overload
+        RenderWindow* createRenderWindow(const RenderWindowDescription& desc)
+        {
+            return createRenderWindow(desc.name, desc.width, desc.height,
+                                      desc.useFullScreen, &desc.miscParams);
+        }
+
         /** @copydoc RenderSystem::_createRenderWindows
         */
         bool createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
@@ -902,7 +910,13 @@ namespace Ogre
         /** Return an iterator over all the MovableObjectFactory instances currently
             registered.
         */
-        MovableObjectFactoryIterator getMovableObjectFactoryIterator(void) const;
+        const MovableObjectFactoryMap& getMovableObjectFactories() const
+        {
+            return mMovableObjectFactoryMap;
+        }
+
+        /// @deprecated use getMovableObjectFactories
+        OGRE_DEPRECATED MovableObjectFactoryIterator getMovableObjectFactoryIterator(void) const;
 
         /**
         * Gets the number of display monitors.

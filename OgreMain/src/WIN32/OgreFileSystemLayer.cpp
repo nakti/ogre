@@ -139,7 +139,7 @@ namespace Ogre
 
         if(!mHomePath.empty())
         {
-            // create Ogre subdir
+            mHomePath += '\\' + subdir + '\\';
             mHomePath += "\\" + supdir + "\\";
             if (!createDirectory(mHomePath))
             {

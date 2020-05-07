@@ -39,6 +39,9 @@ if (OGRE_STATIC)
   if (OGRE_BUILD_PLUGIN_PCZ)
     set(DEPENDENCIES ${DEPENDENCIES} Plugin_PCZSceneManager)
   endif ()
+  if (OGRE_BUILD_PLUGIN_DOT_SCENE)
+    set(DEPENDENCIES ${DEPENDENCIES} Plugin_DotScene)
+  endif ()
   if (OGRE_BUILD_PLUGIN_STBI)
     set(DEPENDENCIES ${DEPENDENCIES} Codec_STBI)
   endif ()
@@ -113,6 +116,11 @@ elseif(UNIX)
   install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/misc/GLX_backdrop.png" DESTINATION "share/OGRE/")
 endif()
 
+if(OGRE_BUILD_COMPONENT_OVERLAY_IMGUI)
+  list(APPEND SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreImGuiInputListener.cpp")
+endif()
+
 # setup target
 add_library(OgreBites ${OGRE_COMP_LIB_TYPE} ${HEADER_FILES} ${SOURCES})
 set_target_properties(OgreBites PROPERTIES VERSION ${OGRE_SOVERSION} SOVERSION ${OGRE_SOVERSION})
@@ -132,6 +140,8 @@ endif()
 if(SDL2_FOUND)
   target_include_directories(OgreBites PRIVATE ${SDL2_INCLUDE_DIR})
   target_link_libraries(OgreBites PRIVATE ${SDL2_LIBRARY})
+elseif(NOT EMSCRIPTEN)
+  message(WARNING "SDL2 not found - no input handling and reduced window creation capabilites")
 endif()
 
 generate_export_header(OgreBites 
@@ -144,4 +154,7 @@ ogre_config_component(OgreBites)
 
 install(FILES ${HEADER_FILES}
   DESTINATION include/OGRE/Bites
+)
+install(FILES "${PROJECT_SOURCE_DIR}/Media/packs/SdkTrays.zip"
+  DESTINATION "${OGRE_MEDIA_PATH}/packs/"
 )

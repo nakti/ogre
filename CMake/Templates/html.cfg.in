@@ -45,7 +45,7 @@ PROJECT_BRIEF          = "Object-Oriented Graphics Rendering Engine"
 # exceed 55 pixels and the maximum width should not exceed 200 pixels.
 # Doxygen will copy the logo to the output directory.
 
-PROJECT_LOGO           = "${PROJECT_SOURCE_DIR}/Docs/ogre-logo-wetfloor.gif"
+PROJECT_LOGO           = "${PROJECT_SOURCE_DIR}/Docs/ogre-logo.png"
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute)
 # base path where the generated documentation will be put.
@@ -205,7 +205,8 @@ TAB_SIZE               = 4
 # will result in a user-defined paragraph with heading "Side Effects:".
 # You can put \n's in the value part of an alias to insert newlines.
 
-ALIASES                =
+ALIASES                =  ffp_rtss_only="@note Only has an effect with the fixed-function pipeline or the @ref rtss"
+ALIASES               +=  shaderparam="@note When using shader programs, you have to explicitely forward this property in the @ref Program-Parameter-Specification"
 
 # This tag can be used to specify a number of word-keyword mappings (TCL only).
 # A mapping has the form "name=value". For example adding

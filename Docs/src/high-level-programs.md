@@ -6,6 +6,34 @@ One way to support both HLSL and GLSL is to include separate techniques in the m
 
 @tableofcontents
 
+
+# Preprocessor definitions {#Preprocessor-definitions}
+
+Both GLSL and HLSL support using preprocessor definitions in your code - some are defined by the implementation, but you can also define your own, say in order to use the same source code for a few different variants of the same technique. In order to use this feature, include preprocessor conditions in your code, of the kind \#ifdef SYMBOL, \#if SYMBOL==2 etc. Then in your program definition, use the ’preprocessor\_defines’ option, following it with a string of definitions. Definitions are separated by ’;’ or ’,’ and may optionally have a ’=’ operator within them to specify a definition value. Those without an ’=’ will implicitly have a definition of 1. For example:
+
+```cpp
+// in your shader
+
+#ifdef CLEVERTECHNIQUE
+    // some clever stuff here
+#else
+    // normal technique
+#endif
+
+#if NUM_THINGS==2
+    // Some specific code
+#else
+    // something else
+#endif
+
+// in  your program definition
+preprocessor_defines CLEVERTECHNIQUE,NUMTHINGS=2
+```
+
+This way you can use the same source code but still include small variations, each one defined as a different Ogre program name but based on the same source code.
+
+@note on GLSL %Ogre pre-processes the source itself instead on relying on the driver implementation which is often buggy. This relaxes using \#ifdef directives compared to the standard - e.g. you can \#ifdef \#version. However this means that defines specified in GLSL extensions are not present.
+
 # Cg programs {#Cg}
 
 In order to define Cg programs, you have to have to load Plugin\_CgProgramManager.so/.dll at startup, either through plugins.cfg or through your own plugin loading code. They are very easy to define:
@@ -45,11 +73,7 @@ Note that if you use the float3x4 / matrix3x4 type in your shader, bound to an O
 **Advanced options**<br>
 
 <dl compact="compact">
-<dt>preprocessor\_defines &lt;defines&gt;</dt> <dd>
-
-This allows you to define symbols which can be used inside the HLSL shader code to alter the behaviour (through \#ifdef or \#if clauses). Definitions are separated by ’;’ or ’,’ and may optionally have a ’=’ operator within them to specify a definition value. Those without an ’=’ will implicitly have a definition of 1.
-
-</dd> <dt>column\_major\_matrices &lt;true|false&gt;</dt> <dd>
+<dt>column\_major\_matrices &lt;true|false&gt;</dt> <dd>
 
 The default for this option is ’true’ so that OGRE passes matrices auto-bound matrices in a form where mul(m,v) works. Setting this option to false does 2 things - it transpose auto-bound 4x4 matrices and also sets the /Zpr (row-major) option on the shader compilation. This means you can still use mul(m,v), but the matrix layout is row-major instead. This is only useful if you need to use bone matrices (float3x4) in a shader since it saves a float4 constant for every bone involved.
 
@@ -67,7 +91,7 @@ OpenGL GLSL has a similar language syntax to HLSL but is tied to the OpenGL API.
 ```cpp
 vertex_program myGLSLVertexProgram glsl
 {
-    source myGLSLVertexProgram.txt
+    source myGLSLVertexProgram.vert
 }
 ```
 
@@ -75,26 +99,28 @@ In GLSL, no entry point needs to be defined since it is always `main()` and ther
 
 GLSL supports the use of modular shaders. This means you can write GLSL external functions that can be used in multiple shaders.
 
+@note shader attachment is not supported by OpenGL ES. However OGRE allows you to use the \#include directive in GLSL shaders, which is independent of the backend.
+
 ```cpp
 vertex_program myExternalGLSLFunction1 glsl
 {
-    source myExternalGLSLfunction1.txt
+    source myExternalGLSLfunction1.vert
 }
 
 vertex_program myExternalGLSLFunction2 glsl
 {
-    source myExternalGLSLfunction2.txt
+    source myExternalGLSLfunction2.vert
 }
 
 vertex_program myGLSLVertexProgram1 glsl
 {
-    source myGLSLfunction.txt
+    source myGLSLfunction.vert
     attach myExternalGLSLFunction1 myExternalGLSLFunction2
 }
 
 vertex_program myGLSLVertexProgram2 glsl
 {
-    source myGLSLfunction.txt
+    source myGLSLfunction.vert
     attach myExternalGLSLFunction1
 }
 ```
@@ -179,105 +205,59 @@ material exampleGLSLmatrixUniforms
 }
 ```
 
-## Accessing OpenGL states in GLSL {#Accessing-OpenGL-states-in-GLSL}
-
-GLSL can access most of the GL states directly so you do not need to pass these states through [param\_named\_auto](#param_005fnamed_005fauto) in the material script. This includes lights, material state, and all the matrices used in the openGL state i.e. model view matrix, worldview projection matrix etc. 
-
-@note this is only possible with OpenGL legacy profiles i.e. **not** with GL3+.
-
 ## Binding vertex attributes {#Binding-vertex-attributes}
 
-GLSL natively supports automatic binding of the most common incoming per-vertex attributes (e.g. `gl_Vertex`, `gl_Normal`, `gl_MultiTexCoord0` etc). However, there are some which are not automatically bound, which must be declared in the shader using the `attribute &lt;type&gt; &lt;name&gt;` syntax, and the vertex data bound to it by Ogre. 
-
-@note again this is only possible with OpenGL legacy profiles i.e. **not** with GL3+.
-
-In addition to the built in attributes described in section 7.3 of the GLSL manual, Ogre supports a number of automatically bound custom vertex attributes. There are some drivers that do not behave correctly when mixing built-in vertex attributes like `gl_Normal` and custom vertex attributes, so for maximum compatibility you should use all custom attributes
-
-<dl compact="compact">
-<dt>vertex</dt> <dd>
-
-Binds Ogre::VES\_POSITION, declare as ’attribute vec4 vertex;’.
-
-</dd> <dt>normal</dt> <dd>
-
-Binds Ogre::VES\_NORMAL, declare as ’attribute vec3 normal;’.
-
-</dd> <dt>colour</dt> <dd>
-
-Binds Ogre::VES\_DIFFUSE, declare as ’attribute vec4 colour;’.
-
-</dd> <dt>secondary\_colour</dt> <dd>
-
-Binds Ogre::VES\_SPECULAR, declare as ’attribute vec4 secondary\_colour;’.
-
-</dd> <dt>uv0 - uv7</dt> <dd>
-
-Binds Ogre::VES\_TEXTURE\_COORDINATES, declare as ’attribute vec4 uv0;’. Note that uv6 and uv7 share attributes with tangent and binormal respectively so cannot both be present.
-
-</dd> <dt>tangent</dt> <dd>
-
-Binds Ogre::VES\_TANGENT, declare as ’attribute vec3 tangent;’.
-
-</dd> <dt>binormal</dt> <dd>
-
-Binds Ogre::VES\_BINORMAL, declare as ’attribute vec3 binormal;’.
-
-</dd> <dt>blendIndices</dt> <dd>
-
-Binds Ogre::VES\_BLEND\_INDICES, declare as ’attribute vec4 blendIndices;’.
-
-</dd> <dt>blendWeights</dt> <dd>
-
-Binds Ogre::VES\_BLEND\_WEIGHTS, declare as ’attribute vec4 blendWeights;’.
-
-</dd> </dl>
-
-## Preprocessor definitions {#Preprocessor-definitions}
-
-GLSL supports using preprocessor definitions in your code - some are defined by the implementation, but you can also define your own, say in order to use the same source code for a few different variants of the same technique. In order to use this feature, include preprocessor conditions in your GLSL code, of the kind \#ifdef SYMBOL, \#if SYMBOL==2 etc. Then in your program definition, use the ’preprocessor\_defines’ option, following it with a string if definitions. Definitions are separated by ’;’ or ’,’ and may optionally have a ’=’ operator within them to specify a definition value. Those without an ’=’ will implicitly have a definition of 1. For example:
+Vertex attributes must be declared in the shader, for the vertex data bound to it by Ogre.
 
 ```cpp
-// in your GLSL
+// legacy GLSL syntax
+attribute vec4 vertex;
 
-#ifdef CLEVERTECHNIQUE
-    // some clever stuff here
-#else
-    // normal technique
-#endif
-
-#if NUM_THINGS==2
-    // Some specific code
-#else
-    // something else
-#endif
-
-// in  your program definition
-preprocessor_defines CLEVERTECHNIQUE,NUMTHINGS=2
+// modern GLSL syntax with explicit layout qualifier
+layout(location = 0) in vec4 vertex;
 ```
 
-This way you can use the same source code but still include small variations, each one defined as a different Ogre program name but based on the same source code.
+refer to the following table for the location indices and names to use:
 
-## GLSL Geometry shader specification {#GLSL-Geometry-shader-specification}
+| Semantic | Custom name | Binding location | Legacy OpenGL built-in |
+|----------|------|------------------|-----------------------|
+| Ogre::VES_POSITION | vertex | 0 | gl_Vertex |
+| Ogre::VES_BLEND_WEIGHTS | blendWeights | 1 | n/a |
+| Ogre::VES_NORMAL | normal | 2 | gl_Normal |
+| Ogre::VES_DIFFUSE | colour | 3 | gl_Color |
+| Ogre::VES_SPECULAR | secondary_colour | 4 | gl_SecondaryColor |
+| Ogre::VES_BLEND_INDICES | blendIndices | 7 | n/a |
+| Ogre::VES_TEXTURE_COORDINATES | uv0 - uv7 | 8-15 | gl_MultiTexCoord0 - gl_MultiTexCoord7 |
+| Ogre::VES_TANGENT | tangent | 14 | n/a |
+| Ogre::VES_BINORMAL | binormal | 15 | n/a |
 
-GLSL allows the same shader to run on different types of geometry primitives. In order to properly link the shaders together, you have to specify which primitives it will receive as input, which primitives it will emit and how many vertices a single run of the shader can generate. The GLSL geometry\_program definition requires three additional parameters :
+@note uv6 and uv7 share attributes with tangent and binormal respectively so cannot both be present.
 
-<dl compact="compact">
-<dt>input\_operation\_type</dt> <dd>
+## Compatibility profile GLSL features {#Legacy-GLSL-features}
 
+The following features are only available when using the legacy OpenGL profile. Notably they are not available with GL3+ or GLES2.
+
+### Accessing OpenGL state
+GLSL can access most of the GL states directly so you do not need to pass these states through [param\_named\_auto](#param_005fnamed_005fauto) in the material script. This includes lights, material state, and all the matrices used in the openGL state i.e. model view matrix, worldview projection matrix etc.
+
+### Access to built-in attributes
+GLSL natively supports automatic binding of the most common incoming per-vertex attributes (e.g. `gl_Vertex`, `gl_Normal`, `gl_MultiTexCoord0` etc)
+as described in section 7.3 of the GLSL manual.
+There are some drivers that do not behave correctly when mixing built-in vertex attributes like `gl_Normal` and custom vertex attributes, so for maximum compatibility you should use all custom attributes
+
+### Geometry shader specification
+GLSL allows the same shader to run on different types of geometry primitives. In order to properly link the shaders together, you have to specify which primitives it will receive as input, which primitives it will emit and how many vertices a single run of the shader can generate. The GLSL geometry\_program definition requires three additional parameters
+
+@param input\_operation\_type
 The operation type of the geometry that the shader will receive. Can be ’point\_list’, ’line\_list’, ’line\_strip’, ’triangle\_list’, ’triangle\_strip’ or ’triangle\_fan’.
 
-</dd> <dt>output\_operation\_type</dt> <dd>
-
+@param output\_operation\_type
 The operation type of the geometry that the shader will emit. Can be ’point\_list’, ’line\_strip’ or ’triangle\_strip’.
 
-</dd> <dt>max\_output\_vertices</dt> <dd>
-
+@param max\_output\_vertices
 The maximum number of vertices that the shader can emit. There is an upper limit for this value, it is exposed in the render system capabilities.
 
-</dd> </dl>
-
-For example:
-
+@par Example
 ```cpp
 geometry_program Ogre/GPTest/Swizzle_GP_GLSL glsl
 {
@@ -287,6 +267,8 @@ geometry_program Ogre/GPTest/Swizzle_GP_GLSL glsl
     max_output_vertices 6
 }
 ```
+
+With GL3+ these values are specified using the `layout` modifier.
 
 # Unified High-level Programs {#Unified-High_002dlevel-Programs}
 
@@ -337,7 +319,7 @@ material SupportHLSLandGLSLwithoutUnified
         {
             vertex_program_ref myVertexProgramHLSL
             {
-                param_named_auto worldViewProj world_view_proj_matrix
+                param_named_auto worldViewProj worldviewproj_matrix
                 param_named_auto lightColour light_diffuse_colour 0
                 param_named_auto lightSpecular light_specular_colour 0
                 param_named_auto lightAtten light_attenuation 0
@@ -354,7 +336,7 @@ material SupportHLSLandGLSLwithoutUnified
         {
             vertex_program_ref myVertexProgramHLSL
             {
-                param_named_auto worldViewProj world_view_proj_matrix
+                param_named_auto worldViewProj worldviewproj_matrix
                 param_named_auto lightColour light_diffuse_colour 0
                 param_named_auto lightSpecular light_specular_colour 0
                 param_named_auto lightAtten light_attenuation 0
@@ -414,7 +396,7 @@ material SupportHLSLandGLSLwithUnified
         {
             vertex_program_ref myVertexProgram
             {
-                param_named_auto worldViewProj world_view_proj_matrix
+                param_named_auto worldViewProj worldviewproj_matrix
                 param_named_auto lightColour light_diffuse_colour 0
                 param_named_auto lightSpecular light_specular_colour 0
                 param_named_auto lightAtten light_attenuation 0

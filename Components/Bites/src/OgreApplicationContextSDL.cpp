@@ -33,25 +33,25 @@ void ApplicationContextSDL::removeInputListener(NativeWindowType* win, InputList
 NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, Ogre::uint32 w, Ogre::uint32 h, Ogre::NameValuePairList miscParams)
 {
     NativeWindowPair ret = {NULL, NULL};
-    parseWindowOptions(w, h, miscParams);
-
-    Ogre::ConfigOptionMap& ropts = mRoot->getRenderSystem()->getConfigOptions();
 
     if(!SDL_WasInit(SDL_INIT_VIDEO)) {
         SDL_InitSubSystem(SDL_INIT_VIDEO);
     }
 
-    Uint32 flags = SDL_WINDOW_RESIZABLE;
+    auto p = mRoot->getRenderSystem()->getRenderWindowDescription();
+    miscParams.insert(p.miscParams.begin(), p.miscParams.end());
+    p.miscParams = miscParams;
+    p.name = name;
 
-    if(ropts["Full Screen"].currentValue == "Yes"){
-       flags = SDL_WINDOW_FULLSCREEN;
-    } else {
-       flags = 0;
+    if(w > 0 && h > 0)
+    {
+        p.width = w;
+        p.height= h;
     }
 
-	if (ropts["Full Screen"].currentValue != "Yes") {
+	if (!p.useFullScreen) {
 		ret.native = SDL_CreateWindow(name.c_str(),
-			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1, 1, flags);
+			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1, 1, 0);
 		int tTop, tBot, tLef, tRig, tW, tH;
 		SDL_Rect tScreen;
 		if (SDL_GetDisplayUsableBounds(SDL_GetWindowDisplayIndex(ret.native), &tScreen) >= 0)
@@ -59,8 +59,8 @@ NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, O
 			SDL_GetWindowBordersSize(ret.native, &tTop, &tLef, &tBot, &tRig);
 			unsigned int tMaxW = tScreen.w - tLef - tRig;
 			unsigned int tMaxH = tScreen.h - tTop - tBot;
-			tW = w > tMaxW ? tMaxW : w;
-			tH = h > tMaxH ? tMaxH : h;
+			tW = p.width > tMaxW ? tMaxW : p.width;
+			tH = p.height > tMaxH ? tMaxH : p.height;
 			SDL_SetWindowSize(ret.native, tW, tH);
 			auto tX = (tMaxW - tW) / 2 + tScreen.x + tLef;
 			auto tY = (tMaxH - tH) / 2 + tScreen.y + tTop;
@@ -72,11 +72,10 @@ NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, O
 	}
 	else
 		ret.native = SDL_CreateWindow(name.c_str(),
-			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags);
+			SDL_WINDOWPOS_UNDEFINED, p.width, p.height, SDL_WINDOW_FULLSCREEN);
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
     SDL_GL_CreateContext(ret.native);
-    miscParams["currentGLContext"] = "true";
 #else
     SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
@@ -84,15 +83,21 @@ NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, O
 #endif
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_LINUX
-    miscParams["parentWindowHandle"] = Ogre::StringConverter::toString(size_t(wmInfo.info.x11.window));
+    p.miscParams["parentWindowHandle"] = Ogre::StringConverter::toString(size_t(wmInfo.info.x11.window));
 #elif OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-    miscParams["externalWindowHandle"] = Ogre::StringConverter::toString(size_t(wmInfo.info.win.window));
+    p.miscParams["externalWindowHandle"] = Ogre::StringConverter::toString(size_t(wmInfo.info.win.window));
 #elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
     assert(wmInfo.subsystem == SDL_SYSWM_COCOA);
-    miscParams["externalWindowHandle"] = Ogre::StringConverter::toString(size_t(wmInfo.info.cocoa.window));
+    p.miscParams["externalWindowHandle"] = Ogre::StringConverter::toString(size_t(wmInfo.info.cocoa.window));
 #endif
 
-    ret.render = mRoot->createRenderWindow(name, w, h, false, &miscParams);
+    if(!mWindows.empty() || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN)
+    {
+        // additional windows should reuse the context (also the first on emscripten)
+        p.miscParams["currentGLContext"] = "true";
+    }
+
+    ret.render = mRoot->createRenderWindow(p);
     mWindows.push_back(ret);
     return ret;
 }
