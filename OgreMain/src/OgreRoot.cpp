@@ -636,7 +636,9 @@ namespace Ogre {
     SceneManagerEnumerator::MetaDataIterator
     Root::getSceneManagerMetaDataIterator(void) const
     {
+        OGRE_IGNORE_DEPRECATED_BEGIN
         return mSceneManagerEnum->getMetaDataIterator();
+        OGRE_IGNORE_DEPRECATED_END
     }
     //-----------------------------------------------------------------------
     const SceneManagerEnumerator::MetaDataList&
@@ -668,7 +670,9 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     SceneManagerEnumerator::SceneManagerIterator Root::getSceneManagerIterator(void)
     {
+        OGRE_IGNORE_DEPRECATED_BEGIN
         return mSceneManagerEnum->getSceneManagerIterator();
+        OGRE_IGNORE_DEPRECATED_END
     }
     //-----------------------------------------------------------------------
     const SceneManagerEnumerator::Instances& Root::getSceneManagers(void) const
@@ -943,7 +947,7 @@ namespace Ogre {
         }
         catch (Exception& e)
         {
-            LogManager::getSingleton().logMessage("automatic plugin loading disabled: "+e.getDescription());
+            LogManager::getSingleton().logError(e.getDescription()+" - skipping automatic plugin loading");
             return;
         }
 
@@ -957,6 +961,13 @@ namespace Ogre {
             String baseDir, filename;
             StringUtil::splitFilename(pluginsfile, filename, baseDir);
             pluginDir = baseDir + pluginDir;
+        }
+
+        if(char* val = getenv("OGRE_PLUGIN_DIR"))
+        {
+            pluginDir = val;
+            LogManager::getSingleton().logMessage(
+                "setting PluginFolder from OGRE_PLUGIN_DIR environment variable");
         }
 
         pluginDir = FileSystemLayer::resolveBundlePath(pluginDir);
@@ -1271,22 +1282,21 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Root::oneTimePostWindowInit(void)
     {
-        if (!mFirstTimePostWindowInit)
-        {
-            // Background loader
-            mResourceBackgroundQueue->initialise();
-            mWorkQueue->startup();
-            // Initialise material manager
-            mMaterialManager->initialise();
-            // Init particle systems manager
-            mParticleManager->_initialise();
-            // Init mesh manager
-            MeshManager::getSingleton()._initialise();
-            // Init plugins - after window creation so rsys resources available
-            initialisePlugins();
-            mFirstTimePostWindowInit = true;
-        }
+        // log RenderSystem caps
+        mActiveRenderer->getCapabilities()->log(LogManager::getSingleton().getDefaultLog());
 
+        // Background loader
+        mResourceBackgroundQueue->initialise();
+        mWorkQueue->startup();
+        // Initialise material manager
+        mMaterialManager->initialise();
+        // Init particle systems manager
+        mParticleManager->_initialise();
+        // Init mesh manager
+        MeshManager::getSingleton()._initialise();
+        // Init plugins - after window creation so rsys resources available
+        initialisePlugins();
+        mFirstTimePostWindowInit = true;
     }
     //-----------------------------------------------------------------------
     bool Root::_updateAllRenderTargets(void)

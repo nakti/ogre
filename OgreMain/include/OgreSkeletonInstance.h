@@ -101,9 +101,10 @@ namespace Ogre {
             Real scale = 1.0f);
         /// @copydoc Skeleton::removeAllLinkedSkeletonAnimationSources
         void removeAllLinkedSkeletonAnimationSources(void);
-        /// @copydoc Skeleton::getLinkedSkeletonAnimationSourceIterator
-        LinkedSkeletonAnimSourceIterator 
-            getLinkedSkeletonAnimationSourceIterator(void) const;
+        const LinkedSkeletonAnimSourceList&
+                    getLinkedSkeletonAnimationSources() const override;
+        OGRE_DEPRECATED LinkedSkeletonAnimSourceIterator
+            getLinkedSkeletonAnimationSourceIterator(void) const override;
 
         /// @copydoc Skeleton::_initAnimationState
         void _initAnimationState(AnimationStateSet* animSet);
@@ -147,8 +148,8 @@ namespace Ogre {
         unsigned short mNextTagPointAutoHandle;
 
         void cloneBoneAndChildren(Bone* source, Bone* parent);
-        void loadImpl(void) override;
-        void unloadImpl(void) override;
+        void prepareImpl(void) override;
+        void unprepareImpl(void) override;
 
     };
     /** @} */

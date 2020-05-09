@@ -28,6 +28,8 @@
 #include "DefaultSamplesPlugin.h"
 
 #include "OgreComponents.h"
+
+#include "AtomicCounters.h"
 #include "BezierPatch.h"
 #include "BSP.h"
 #include "CameraTrack.h"
@@ -50,7 +52,9 @@
 #ifdef OGRE_BUILD_COMPONENT_HLMS
 #   include "HLMS.h"
 #endif
+#ifdef HAVE_IMGUI
 #include "ImGuiDemo.h"
+#endif
 #include "Isosurf.h"
 #include "Lighting.h"
 #include "LightShafts.h"
@@ -90,6 +94,7 @@ using namespace OgreBites;
 
 DefaultSamplesPlugin::DefaultSamplesPlugin() : SamplePlugin("DefaultSamplesPlugin")
 {
+    addSample(new Sample_AtomicCounters);
     addSample(new Sample_BezierPatch);
     addSample(new Sample_CameraTrack);
     addSample(new Sample_Character);
@@ -99,7 +104,9 @@ DefaultSamplesPlugin::DefaultSamplesPlugin() : SamplePlugin("DefaultSamplesPlugi
     addSample(new Sample_Grass);
     addSample(new Sample_DualQuaternion);
     addSample(new Sample_Isosurf);
+#ifdef HAVE_IMGUI
     addSample(new Sample_ImGui);
+#endif
     addSample(new Sample_NewInstancing);
     addSample(new Sample_TextureArray);
     addSample(new Sample_Tessellation);

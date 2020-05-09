@@ -46,8 +46,11 @@ THE SOFTWARE.
 #   define strnicmp strncasecmp
 #endif
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN || \
+	(OGRE_PLATFORM == OGRE_PLATFORM_LINUX && OGRE_NO_LOCALE_STRCONVERT == 1)
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
 #   define locale_t int
+#endif
 #   define strtod_l(ptr, end, l) strtod(ptr, end)
 #   define strtoul_l(ptr, end, base, l) strtoul(ptr, end, base)
 #   define strtol_l(ptr, end, base, l) strtol(ptr, end, base)
@@ -113,9 +116,9 @@ namespace Ogre {
             @param str
             @param
             delims A list of delimiter characters to split by
-            @param
+            @par
             doubleDelims A list of double delimeters characters to tokenise by
-            @param
+            @par
             maxSplits The maximum number of splits to perform (0 for unlimited splits). If this
             parameters is > 0, the splitting process will stop after this many splits, left to right.
         */

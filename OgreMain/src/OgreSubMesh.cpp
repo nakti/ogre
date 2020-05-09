@@ -141,6 +141,7 @@ namespace Ogre {
         bool newMaterialCreated = false;
         // if submesh has texture aliases
         // ask the material manager if the current submesh material exists
+        OGRE_IGNORE_DEPRECATED_BEGIN
         if (hasTextureAliases() && mMaterial)
         {
             // get the current submesh material
@@ -163,12 +164,11 @@ namespace Ogre {
                 newMaterialName += "?TexAlias(";
                 // Iterate deterministically over the aliases (always in the same
                 // order via std::map's sorted iteration nature).
-                AliasTextureIterator aliasIter = getAliasTextureIterator();
-                while( aliasIter.hasMoreElements() )
+                for( const auto& it : mTextureAliases )
                 {
-                    newMaterialName += aliasIter.peekNextKey();
+                    newMaterialName += it.first;
                     newMaterialName += "=";
-                    newMaterialName += aliasIter.getNext();
+                    newMaterialName += it.second;
                     newMaterialName += " ";
                 }
                 newMaterialName += ")";
@@ -187,6 +187,7 @@ namespace Ogre {
                 newMaterialCreated = true;
             }
         }
+        OGRE_IGNORE_DEPRECATED_END
 
         return newMaterialCreated;
     }

@@ -101,28 +101,33 @@ NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, O
     return ret;
 }
 
+void ApplicationContextSDL::_destroyWindow(const NativeWindowPair& win)
+{
+    ApplicationContextBase::_destroyWindow(win);
+    if(win.native)
+        SDL_DestroyWindow(win.native);
+}
+
 void ApplicationContextSDL::setWindowGrab(NativeWindowType* win, bool _grab)
 {
     SDL_bool grab = SDL_bool(_grab);
 
     SDL_SetWindowGrab(win, grab);
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE
+    // osx workaround: mouse motion events are gone otherwise
     SDL_SetRelativeMouseMode(grab);
+#else
+    SDL_ShowCursor(!grab);
+#endif
 }
 
 void ApplicationContextSDL::shutdown()
 {
     ApplicationContextBase::shutdown();
 
-    for(WindowList::iterator it = mWindows.begin(); it != mWindows.end(); ++it)
-    {
-        if(it->native)
-            SDL_DestroyWindow(it->native);
-    }
-    if(!mWindows.empty()) {
+    if(SDL_WasInit(SDL_INIT_VIDEO)) {
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
     }
-
-    mWindows.clear();
 }
 
 void ApplicationContextSDL::pollEvents()
@@ -160,15 +165,6 @@ void ApplicationContextSDL::pollEvents()
             break;
         }
     }
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-    // hacky workaround for black window on OSX
-    for(const auto& win : mWindows)
-    {
-        SDL_SetWindowSize(win.native, win.render->getWidth(), win.render->getHeight());
-        win.render->windowMovedOrResized();
-    }
-#endif
 }
 
 }

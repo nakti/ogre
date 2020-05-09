@@ -28,7 +28,7 @@ THE SOFTWARE.
 #define _ShaderParameter_
 
 #include "OgreShaderPrerequisites.h"
-#include "OgreVector2.h"
+#include "OgreVector.h"
 #include "OgreMatrix4.h"
 #include "OgreGpuProgramParams.h"
 
@@ -662,7 +662,7 @@ class _OgreRTSSExport ParameterFactory
     // Interface.
 public:
 
-    static ParameterPtr createInPosition(int index);    
+    static ParameterPtr createInPosition(int index, Parameter::Content content = Parameter::SPC_POSITION_OBJECT_SPACE);
     static ParameterPtr createOutPosition(int index);
 
     static ParameterPtr createInNormal(int index);
@@ -678,7 +678,9 @@ public:
 
     static ParameterPtr createInTexcoord(GpuConstantType type, int index, Parameter::Content content);
     static ParameterPtr createOutTexcoord(GpuConstantType type, int index, Parameter::Content content);
+    /// @deprecated use createInTexcoord
     static ParameterPtr createInTexcoord1(int index, Parameter::Content content);
+    /// @deprecated use createOutTexcoord
     static ParameterPtr createOutTexcoord1(int index, Parameter::Content content);
     static ParameterPtr createInTexcoord2(int index, Parameter::Content content);
     static ParameterPtr createOutTexcoord2(int index, Parameter::Content content);

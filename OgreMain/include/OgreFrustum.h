@@ -171,25 +171,26 @@ namespace Ogre
         MaterialPtr mMaterial;
         mutable Vector3 mWorldSpaceCorners[8];
 
-        /// Is this frustum to act as a reflection of itself?
-        bool mReflect;
         /// Derived reflection matrix
         mutable Affine3 mReflectMatrix;
         /// Fixed reflection plane
         mutable Plane mReflectPlane;
-        /// Pointer to a reflection plane (automatically updated)
-        const MovablePlane* mLinkedReflectPlane;
         /// Record of the last world-space reflection plane info used
         mutable Plane mLastLinkedReflectionPlane;
-        
-        /// Is this frustum using an oblique depth projection?
-        bool mObliqueDepthProjection;
         /// Fixed oblique projection plane
         mutable Plane mObliqueProjPlane;
+
+        /// Pointer to a reflection plane (automatically updated)
+        const MovablePlane* mLinkedReflectPlane;
         /// Pointer to oblique projection plane (automatically updated)
         const MovablePlane* mLinkedObliqueProjPlane;
         /// Record of the last world-space oblique depth projection plane info used
         mutable Plane mLastLinkedObliqueProjPlane;
+
+        /// Is this frustum to act as a reflection of itself?
+        bool mReflect;
+        /// Is this frustum using an oblique depth projection?
+        bool mObliqueDepthProjection;
 
     public:
 
@@ -488,13 +489,15 @@ namespace Ogre
         Real getSquaredViewDepth(const Camera* cam) const override;
         const LightList& getLights(void) const override;
 
+        typedef Vector3 Corners[8];
+
         /** Gets the world space corners of the frustum.
         @remarks
             The corners are ordered as follows: top-right near, 
             top-left near, bottom-left near, bottom-right near, 
             top-right far, top-left far, bottom-left far, bottom-right far.
         */
-        virtual const Vector3* getWorldSpaceCorners(void) const;
+        virtual const Corners& getWorldSpaceCorners(void) const;
 
         /** Sets the type of projection to use (orthographic or perspective). Default is perspective.
         */

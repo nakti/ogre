@@ -46,6 +46,8 @@ THE SOFTWARE.
 #include "OgreSkeletonManager.h"
 #include "OgreCompositorManager.h"
 #include "OgreTextureManager.h"
+#include "OgreFileSystem.h"
+#include "OgreArchiveManager.h"
 
 #include <random>
 using std::minstd_rand;
@@ -238,17 +240,41 @@ TEST(Image, FlipV)
     STBIImageCodec::shutdown();
 }
 
-struct TestResourceLoadingListener : public ResourceLoadingListener
+TEST(Image, Combine)
 {
-    DataStreamPtr resourceLoading(const String &name, const String &group, Resource *resource) { return DataStreamPtr(); }
-    void resourceStreamOpened(const String &name, const String &group, Resource *resource, DataStreamPtr& dataStream) {}
+    ResourceGroupManager mgr;
+    FileSystemArchiveFactory fs;
+    ArchiveManager amgr;
+    amgr.addArchiveFactory(&fs);
+    STBIImageCodec::startup();
+    ConfigFile cf;
+    cf.load(FileSystemLayer(OGRE_VERSION_NAME).getConfigFilePath("resources.cfg"));
+    mgr.addResourceLocation(cf.getSettings("General").begin()->second+"/materials/textures", fs.getType());
+    mgr.initialiseAllResourceGroups();
+
+    auto testPath = cf.getSettings("Tests").begin()->second;
+    Image ref;
+    ref.load(Root::openFileStream(testPath+"/rockwall_flare.png"), "png");
+
+    Image combined;
+    // pick 2 files that are the same size, alpha texture will be made greyscale
+    combined.loadTwoImagesAsRGBA("rockwall.tga", "flare.png", RGN_DEFAULT, PF_BYTE_RGBA);
+
+    // combined.save(testPath+"/rockwall_flare.png");
+    ASSERT_TRUE(!memcmp(combined.getData(), ref.getData(), ref.getSize()));
+
+    STBIImageCodec::shutdown();
+}
+
+struct UsePreviousResourceLoadingListener : public ResourceLoadingListener
+{
     bool resourceCollision(Resource *resource, ResourceManager *resourceManager) { return false; }
 };
 
 typedef RootWithoutRenderSystemFixture ResourceLoading;
 TEST_F(ResourceLoading, CollsionUseExisting)
 {
-    TestResourceLoadingListener listener;
+    UsePreviousResourceLoadingListener listener;
     ResourceGroupManager::getSingleton().setLoadingListener(&listener);
 
     MaterialPtr mat = MaterialManager::getSingleton().create("Collision", "Tests");
@@ -273,6 +299,27 @@ TEST_F(ResourceLoading, CollsionUseExisting)
         "Collision", "Tests", "null", GPT_VERTEX_PROGRAM));
 }
 
+struct DeletePreviousResourceLoadingListener : public ResourceLoadingListener
+{
+    bool resourceCollision(Resource* resource, ResourceManager* resourceManager)
+    {
+        resourceManager->remove(resource->getName(), resource->getGroup());
+        return true;
+    }
+};
+
+TEST_F(ResourceLoading, CollsionDeleteExisting)
+{
+    DeletePreviousResourceLoadingListener listener;
+    ResourceGroupManager::getSingleton().setLoadingListener(&listener);
+    ResourceGroupManager::getSingleton().createResourceGroup("EmptyGroup", false);
+
+    MaterialPtr mat = MaterialManager::getSingleton().create("Collision", "EmptyGroup");
+    EXPECT_TRUE(mat);
+    EXPECT_TRUE(MaterialManager::getSingleton().create("Collision", "EmptyGroup"));
+    EXPECT_TRUE(mat->clone("Collision"));
+}
+
 typedef RootWithoutRenderSystemFixture TextureTests;
 TEST_F(TextureTests, Blank)
 {
@@ -285,7 +332,28 @@ TEST_F(TextureTests, Blank)
     EXPECT_EQ(tus->getNumMipmaps(), MIP_DEFAULT);
     EXPECT_EQ(tus->getDesiredFormat(), PF_UNKNOWN);
     EXPECT_EQ(tus->getFrameTextureName(0), "");
-    EXPECT_EQ(tus->getIsAlpha(), false);
     EXPECT_EQ(tus->getGamma(), 1.0f);
     EXPECT_EQ(tus->isHardwareGammaEnabled(), false);
+}
+
+TEST(GpuSharedParameters, align)
+{
+    Root root("");
+    GpuSharedParameters params("dummy");
+
+    // trivial case
+    params.addConstantDefinition("a", GCT_FLOAT1);
+    EXPECT_EQ(params.getConstantDefinition("a").logicalIndex, 0);
+
+    // 16 byte alignment
+    params.addConstantDefinition("b", GCT_FLOAT4);
+    EXPECT_EQ(params.getConstantDefinition("b").logicalIndex, 16);
+
+    // break alignment again
+    params.addConstantDefinition("c", GCT_FLOAT1);
+    EXPECT_EQ(params.getConstantDefinition("c").logicalIndex, 32);
+
+    // 16 byte alignment
+    params.addConstantDefinition("d", GCT_MATRIX_4X4);
+    EXPECT_EQ(params.getConstantDefinition("d").logicalIndex, 48);
 }

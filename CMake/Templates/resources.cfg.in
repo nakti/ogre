@@ -22,7 +22,7 @@ FileSystem=@OGRE_MEDIA_DIR_REL@/fonts
 FileSystem=@OGRE_MEDIA_DIR_REL@/materials/programs
 FileSystem=@OGRE_MEDIA_DIR_REL@/materials/scripts
 FileSystem=@OGRE_MEDIA_DIR_REL@/materials/textures
-FileSystem=@OGRE_MEDIA_DIR_REL@/materials/textures/nvidia
+FileSystem=@OGRE_MEDIA_DIR_REL@/materials/textures/terrain
 FileSystem=@OGRE_MEDIA_DIR_REL@/models
 FileSystem=@OGRE_MEDIA_DIR_REL@/particle
 FileSystem=@OGRE_MEDIA_DIR_REL@/DeferredShadingMedia
@@ -46,6 +46,9 @@ FileSystem=@OGRE_MEDIA_DIR_REL@/materials/textures/glTF2_IBL
 Zip=@OGRE_MEDIA_DIR_REL@/packs/DamagedHelmet.zip
 
 FileSystem=@OGRE_CORE_MEDIA_DIR@/HLMS
+
+[BSPWorld]
+Zip=@OGRE_MEDIA_DIR_REL@/packs/oa_rpg3dm2.pk3
 
 # Materials for visual tests
 [Tests]

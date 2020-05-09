@@ -88,8 +88,6 @@ mCameraRelativeRendering(false),
 mLastLightHash(0),
 mGpuParamsDirty((uint16)GPV_ALL)
 {
-    mShadowCasterQueryListener.reset(new ShadowCasterSceneQueryListener(this));
-
     Root *root = Root::getSingletonPtr();
     if (root)
         _setDestinationRenderSystem(root->getRenderSystem());
@@ -108,7 +106,6 @@ mGpuParamsDirty((uint16)GPV_ALL)
 SceneManager::~SceneManager()
 {
     fireSceneManagerDestroyed();
-    mShadowRenderer.destroyShadowTextures();
     clearScene();
     destroyAllCameras();
 
@@ -689,6 +686,7 @@ void SceneManager::destroyAllParticleSystems(void)
 //-----------------------------------------------------------------------
 void SceneManager::clearScene(void)
 {
+    mShadowRenderer.destroyShadowTextures();
     destroyAllStaticGeometry();
     destroyAllInstanceManagers();
     destroyAllMovableObjects();
@@ -1069,27 +1067,7 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
             // if that's the case, we have to bind when lights are iterated
             // in renderSingleObject
 
-            TexturePtr shadowTex;
-            if (shadowTexIndex < mShadowRenderer.mShadowTextures.size())
-            {
-                shadowTex = getShadowTexture(shadowTexIndex);
-                // Hook up projection frustum
-                Camera *cam = shadowTex->getBuffer()->getRenderTarget()->getViewport(0)->getCamera();
-                // Enable projective texturing if fixed-function, but also need to
-                // disable it explicitly for program pipeline.
-                pTex->setProjectiveTexturing(!pass->hasVertexProgram(), cam);
-                mAutoParamDataSource->setTextureProjector(cam, shadowTexUnitIndex);
-            }
-            else
-            {
-                // Use fallback 'null' shadow texture
-                // no projection since all uniform colour anyway
-                shadowTex = mShadowRenderer.mNullShadowTexture;
-                pTex->setProjectiveTexturing(false);
-                mAutoParamDataSource->setTextureProjector(0, shadowTexUnitIndex);
-            }
-            pTex->_setTexturePtr(shadowTex);
-
+            mShadowRenderer.resolveShadowTexture(pTex, shadowTexIndex, shadowTexUnitIndex);
             ++shadowTexIndex;
             ++shadowTexUnitIndex;
         }
@@ -1097,8 +1075,7 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
         {
             // Manually set texture projector for shaders if present
             // This won't get set any other way if using manual projection
-            TextureUnitState::EffectMap::const_iterator effi =
-                pTex->getEffects().find(TextureUnitState::ET_PROJECTIVE_TEXTURE);
+            auto effi = pTex->getEffects().find(TextureUnitState::ET_PROJECTIVE_TEXTURE);
             if (effi != pTex->getEffects().end())
             {
                 mAutoParamDataSource->setTextureProjector(effi->second.frustum, unit);
@@ -1139,9 +1116,8 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
 
     // Set up non-texture related material settings
     // Depth buffer settings
-    mDestRenderSystem->_setDepthBufferFunction(pass->getDepthFunction());
-    mDestRenderSystem->_setDepthBufferCheckEnabled(pass->getDepthCheckEnabled());
-    mDestRenderSystem->_setDepthBufferWriteEnabled(pass->getDepthWriteEnabled());
+    mDestRenderSystem->_setDepthBufferParams(pass->getDepthCheckEnabled(), pass->getDepthWriteEnabled(),
+                                             pass->getDepthFunction());
     mDestRenderSystem->_setDepthBias(pass->getDepthBiasConstant(), pass->getDepthBiasSlopeScale());
     // Alpha-reject settings
     mDestRenderSystem->_setAlphaRejectSettings(pass->getAlphaRejectFunction(),
@@ -1305,8 +1281,10 @@ void SceneManager::_renderScene(Camera* camera, Viewport* vp, bool includeOverla
             {
                 (*atsni)->_autoTrack();
             }
+#ifdef OGRE_NODELESS_POSITIONING
             // Auto-track camera if required
             camera->_autoTrack();
+#endif
         }
 
         if (mIlluminationStage != IRS_RENDER_TO_TEXTURE && mFindVisibleObjects)
@@ -3058,141 +3036,6 @@ void SceneManager::findLightsAffectingFrustum(const Camera* camera)
     }
 
 }
-//---------------------------------------------------------------------
-bool SceneManager::ShadowCasterSceneQueryListener::queryResult(
-    MovableObject* object)
-{
-    if (object->getCastShadows() && object->isVisible() && 
-        mSceneMgr->isRenderQueueToBeProcessed(object->getRenderQueueGroup()) &&
-        // objects need an edge list to cast shadows (shadow volumes only)
-        ((mSceneMgr->getShadowTechnique() & SHADOWDETAILTYPE_TEXTURE) ||
-        ((mSceneMgr->getShadowTechnique() & SHADOWDETAILTYPE_STENCIL) && object->hasEdgeList())
-        )
-       )
-    {
-        if (mFarDistSquared)
-        {
-            // Check object is within the shadow far distance
-            Vector3 toObj = object->getParentNode()->_getDerivedPosition() 
-                - mCamera->getDerivedPosition();
-            Real radius = object->getWorldBoundingSphere().getRadius();
-            Real dist =  toObj.squaredLength();               
-            if (dist - (radius * radius) > mFarDistSquared)
-            {
-                // skip, beyond max range
-                return true;
-            }
-        }
-
-        // If the object is in the frustum, we can always see the shadow
-        if (mCamera->isVisible(object->getWorldBoundingBox()))
-        {
-            mCasterList->push_back(object);
-            return true;
-        }
-
-        // Otherwise, object can only be casting a shadow into our view if
-        // the light is outside the frustum (or it's a directional light, 
-        // which are always outside), and the object is intersecting
-        // on of the volumes formed between the edges of the frustum and the
-        // light
-        if (!mIsLightInFrustum || mLight->getType() == Light::LT_DIRECTIONAL)
-        {
-            // Iterate over volumes
-            PlaneBoundedVolumeList::const_iterator i, iend;
-            iend = mLightClipVolumeList->end();
-            for (i = mLightClipVolumeList->begin(); i != iend; ++i)
-            {
-                if (i->intersects(object->getWorldBoundingBox()))
-                {
-                    mCasterList->push_back(object);
-                    return true;
-                }
-
-            }
-
-        }
-    }
-    return true;
-}
-//---------------------------------------------------------------------
-bool SceneManager::ShadowCasterSceneQueryListener::queryResult(
-    SceneQuery::WorldFragment* fragment)
-{
-    // don't deal with world geometry
-    return true;
-}
-//---------------------------------------------------------------------
-const SceneManager::ShadowCasterList& SceneManager::findShadowCastersForLight(
-    const Light* light, const Camera* camera)
-{
-    mShadowCasterList.clear();
-
-    if (light->getType() == Light::LT_DIRECTIONAL)
-    {
-        // Basic AABB query encompassing the frustum and the extrusion of it
-        AxisAlignedBox aabb;
-        const Vector3* corners = camera->getWorldSpaceCorners();
-        Vector3 min, max;
-        Vector3 extrude = light->getDerivedDirection() * -mShadowRenderer.mShadowDirLightExtrudeDist;
-        // do first corner
-        min = max = corners[0];
-        min.makeFloor(corners[0] + extrude);
-        max.makeCeil(corners[0] + extrude);
-        for (size_t c = 1; c < 8; ++c)
-        {
-            min.makeFloor(corners[c]);
-            max.makeCeil(corners[c]);
-            min.makeFloor(corners[c] + extrude);
-            max.makeCeil(corners[c] + extrude);
-        }
-        aabb.setExtents(min, max);
-
-        if (!mShadowCasterAABBQuery)
-            mShadowCasterAABBQuery.reset(createAABBQuery(aabb));
-        else
-            mShadowCasterAABBQuery->setBox(aabb);
-        // Execute, use callback
-        mShadowCasterQueryListener->prepare(false, 
-            &(light->_getFrustumClipVolumes(camera)), 
-            light, camera, &mShadowCasterList, light->getShadowFarDistanceSquared());
-        mShadowCasterAABBQuery->execute(mShadowCasterQueryListener.get());
-
-
-    }
-    else
-    {
-        Sphere s(light->getDerivedPosition(), light->getAttenuationRange());
-        // eliminate early if camera cannot see light sphere
-        if (camera->isVisible(s))
-        {
-            if (!mShadowCasterSphereQuery)
-                mShadowCasterSphereQuery.reset(createSphereQuery(s));
-            else
-                mShadowCasterSphereQuery->setSphere(s);
-
-            // Determine if light is inside or outside the frustum
-            bool lightInFrustum = camera->isVisible(light->getDerivedPosition());
-            const PlaneBoundedVolumeList* volList = 0;
-            if (!lightInFrustum)
-            {
-                // Only worth building an external volume list if
-                // light is outside the frustum
-                volList = &(light->_getFrustumClipVolumes(camera));
-            }
-
-            // Execute, use callback
-            mShadowCasterQueryListener->prepare(lightInFrustum, 
-                volList, light, camera, &mShadowCasterList, light->getShadowFarDistanceSquared());
-            mShadowCasterSphereQuery->execute(mShadowCasterQueryListener.get());
-
-        }
-
-    }
-
-
-    return mShadowCasterList;
-}
 void SceneManager::initShadowVolumeMaterials()
 {
     mShadowRenderer.initShadowVolumeMaterials();
@@ -3255,16 +3098,13 @@ ClipResult SceneManager::buildAndSetScissor(const LightList& ll, const Camera* c
         finalRect.bottom > -1.0f || finalRect.top < 1.0f)
     {
         // Turn normalised device coordinates into pixels
-        int iLeft, iTop, iWidth, iHeight;
-        mCurrentViewport->getActualDimensions(iLeft, iTop, iWidth, iHeight);
-        size_t szLeft, szRight, szTop, szBottom;
+        Rect vp = mCurrentViewport->getActualDimensions();
 
-        szLeft = (size_t)(iLeft + ((finalRect.left + 1) * 0.5 * iWidth));
-        szRight = (size_t)(iLeft + ((finalRect.right + 1) * 0.5 * iWidth));
-        szTop = (size_t)(iTop + ((-finalRect.top + 1) * 0.5 * iHeight));
-        szBottom = (size_t)(iTop + ((-finalRect.bottom + 1) * 0.5 * iHeight));
-
-        mDestRenderSystem->setScissorTest(true, szLeft, szTop, szRight, szBottom);
+        Rect scissor(vp.left + ((finalRect.left + 1) * 0.5 * vp.width()),
+                     vp.top + ((-finalRect.top + 1) * 0.5 * vp.height()),
+                     vp.left + ((finalRect.right + 1) * 0.5 * vp.width()),
+                     vp.top + ((-finalRect.bottom + 1) * 0.5 * vp.height()));
+        mDestRenderSystem->setScissorTest(true, scissor);
 
         return CLIPPED_SOME;
     }
@@ -3398,14 +3238,8 @@ void SceneManager::buildLightClip(const Light* l, PlaneList& planes)
             {
                 up = Vector3::UNIT_Z;
             }
-            // cross twice to rederive, only direction is unaltered
-            Vector3 right = dir.crossProduct(up);
-            right.normalise();
-            up = right.crossProduct(dir);
-            up.normalise();
-            // Derive quaternion from axes (negate dir since -Z)
-            Quaternion q;
-            q.FromAxes(right, up, -dir);
+            // Derive rotation from axes (negate dir since -Z)
+            Matrix3 q = Math::lookRotation(-dir, up);
 
             // derive pyramid corner vectors in world orientation
             Vector3 tl, tr, bl, br;

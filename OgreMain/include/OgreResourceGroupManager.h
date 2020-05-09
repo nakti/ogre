@@ -213,14 +213,14 @@ namespace Ogre {
         virtual ~ResourceLoadingListener() {}
 
         /** This event is called when a resource beings loading. */
-        virtual DataStreamPtr resourceLoading(const String &name, const String &group, Resource *resource) = 0;
+        virtual DataStreamPtr resourceLoading(const String &name, const String &group, Resource *resource) { return NULL; }
 
         /** This event is called when a resource stream has been opened, but not processed yet. 
 
             You may alter the stream if you wish or alter the incoming pointer to point at
             another stream if you wish.
         */
-        virtual void resourceStreamOpened(const String &name, const String &group, Resource *resource, DataStreamPtr& dataStream) = 0;
+        virtual void resourceStreamOpened(const String &name, const String &group, Resource *resource, DataStreamPtr& dataStream) {}
 
         /** This event is called when a resource collides with another existing one in a resource manager
 
@@ -228,7 +228,7 @@ namespace Ogre {
             @param resourceManager the according resource manager 
             @return false to skip registration of the conflicting resource and continue using the previous instance.
           */
-        virtual bool resourceCollision(Resource *resource, ResourceManager *resourceManager) = 0;
+        virtual bool resourceCollision(Resource *resource, ResourceManager *resourceManager) { return true; }
     };
 
     /** This singleton class manages the list of resource groups, and notifying
@@ -454,12 +454,12 @@ namespace Ogre {
         void initialiseAllResourceGroups(void);
 
         /** Prepares a resource group.
-        @remarks
+
             Prepares any created resources which are part of the named group.
             Note that resources must have already been created by calling
-            ResourceManager::createResource, or declared using #declareResource or
+            ResourceManager::createResource, or declared using declareResource() or
             in a script (such as .material and .overlay). The latter requires
-            that initialiseResourceGroup has been called. 
+            that initialiseResourceGroup() has been called.
         
             When this method is called, this class will callback any ResourceGroupListener
             which have been registered to update them on progress. 
@@ -474,12 +474,12 @@ namespace Ogre {
             bool prepareWorldGeom = true);
 
         /** Loads a resource group.
-        @remarks
+
             Loads any created resources which are part of the named group.
             Note that resources must have already been created by calling
-            ResourceManager::create, or declared using declareResource() or
+            ResourceManager::createResource, or declared using declareResource() or
             in a script (such as .material and .overlay). The latter requires
-            that initialiseResourceGroup has been called. 
+            that initialiseResourceGroup() has been called.
         
             When this method is called, this class will callback any ResourceGroupListeners
             which have been registered to update them on progress. 
@@ -494,12 +494,12 @@ namespace Ogre {
             bool loadWorldGeom = true);
 
         /** Unloads a resource group.
-        @remarks
+
             This method unloads all the resources that have been declared as
             being part of the named resource group. Note that these resources
             will still exist in their respective ResourceManager classes, but
             will be in an unloaded state. If you want to remove them entirely,
-            you should use clearResourceGroup or destroyResourceGroup.
+            you should use clearResourceGroup() or destroyResourceGroup().
         @param name The name to of the resource group to unload.
         @param reloadableOnly If set to true, only unload the resource that is
             reloadable. Because some resources isn't reloadable, they will be
@@ -511,8 +511,8 @@ namespace Ogre {
         void unloadResourceGroup(const String& name, bool reloadableOnly = true);
 
         /** Unload all resources which are not referenced by any other object.
-        @remarks
-            This method behaves like unloadResourceGroup, except that it only
+
+            This method behaves like unloadResourceGroup(), except that it only
             unloads resources in the group which are not in use, ie not referenced
             by other objects. This allows you to free up some memory selectively
             whilst still keeping the group around (and the resources present,
@@ -649,12 +649,15 @@ namespace Ogre {
             pointing at the source of the data.
         @param resourceName The name of the resource to locate.
             Even if resource locations are added recursively, you
-            must provide a fully qualified name to this method. You 
+            must provide a fully qualified name to this method. You
             can find out the matching fully qualified names by using the
             find() method if you need to.
-        @param groupName The name of the resource group; this determines which 
-            locations are searched. 
-        @param resourceBeingLoaded Optional pointer to the resource being 
+        @param groupName The name of the resource group; this determines which
+            locations are searched.
+            If you're loading a @ref Resource using #RGN_AUTODETECT, you **must**
+            also provide the resourceBeingLoaded parameter to enable the
+            group membership to be changed
+        @param resourceBeingLoaded Optional pointer to the resource being
             loaded, which you should supply if you want
         @param throwOnFailure throw an exception. Returns nullptr otherwise
         @return Shared pointer to data stream containing the data, will be
@@ -670,12 +673,8 @@ namespace Ogre {
         }
 
         /** 
-            @param searchGroupsIfNotFound If true, if the resource is not found in 
-            the group specified, other groups will be searched. If you're
-            loading a real Resource using this option, you <strong>must</strong>
-            also provide the resourceBeingLoaded parameter to enable the 
-            group membership to be changed
-            @copydetails openResource
+            @overload
+            if the resource is not found in the group specified, other groups will be searched.
             @deprecated use AUTODETECT_RESOURCE_GROUP_NAME instead of searchGroupsIfNotFound
         */
         OGRE_DEPRECATED DataStreamPtr openResource(const String& resourceName,
@@ -892,9 +891,12 @@ namespace Ogre {
         */
         void _unregisterResourceManager(const String& resourceType);
 
-        /** Get an iterator over the registered resource managers.
+        /** Get the registered resource managers.
         */
-        ResourceManagerIterator getResourceManagerIterator()
+        const ResourceManagerMap& getResourceManagers() const { return mResourceManagerMap; }
+
+        /// @deprecated use getResourceManagers()
+        OGRE_DEPRECATED ResourceManagerIterator getResourceManagerIterator()
         { return ResourceManagerIterator(
             mResourceManagerMap.begin(), mResourceManagerMap.end()); }
 

@@ -35,7 +35,6 @@ THE SOFTWARE.
 #include "OgreLogManager.h"
 
 #include "OgreGLSLProgram.h"
-#include "OgreGLSLGpuProgram.h"
 #include "OgreGLSLExtSupport.h"
 #include "OgreGLSLLinkProgramManager.h"
 #include "OgreGLSLPreprocessor.h"
@@ -188,7 +187,7 @@ namespace Ogre {
         }
     }
     //---------------------------------------------------------------------------
-    bool GLSLProgram::compile(bool checkErrors)
+    void GLSLProgram::loadFromSource()
     {
         // only create a shader object if glsl is supported
         if (isSupported())
@@ -211,25 +210,22 @@ namespace Ogre {
             case GPT_HULL_PROGRAM:
                 break;
             }
-            mGLHandle = glCreateShaderObjectARB(shaderType);
+            mGLShaderHandle = glCreateShaderObjectARB(shaderType);
         }
 
         // Add preprocessor extras and main source
         if (!mSource.empty())
         {
             const char *source = mSource.c_str();
-            glShaderSourceARB(mGLHandle, 1, &source, NULL);
+            glShaderSourceARB(mGLShaderHandle, 1, &source, NULL);
         }
 
-        glCompileShaderARB(mGLHandle);
+        glCompileShaderARB(mGLShaderHandle);
         // check for compile errors
         int compiled = 0;
-        glGetObjectParameterivARB(mGLHandle, GL_OBJECT_COMPILE_STATUS_ARB, &compiled);
+        glGetObjectParameterivARB(mGLShaderHandle, GL_OBJECT_COMPILE_STATUS_ARB, &compiled);
 
-        if(!checkErrors)
-            return compiled == 1;
-
-        String compileInfo = getObjectInfo(mGLHandle);
+        String compileInfo = getObjectInfo(mGLShaderHandle);
 
         if (!compiled)
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, getResourceLogName() + " " + compileInfo, "compile");
@@ -237,24 +233,14 @@ namespace Ogre {
         // probably we have warnings
         if (!compileInfo.empty())
             LogManager::getSingleton().stream(LML_WARNING) << getResourceLogName() << " " << compileInfo;
-
-        return (compiled == 1);
-    }
-
-    //-----------------------------------------------------------------------
-    void GLSLProgram::createLowLevelImpl(void)
-    {
-        mAssemblerProgram = GpuProgramPtr(OGRE_NEW GLSLGpuProgram( this ));
-        // Shader params need to be forwarded to low level implementation
-        mAssemblerProgram->setAdjacencyInfoRequired(isAdjacencyInfoRequired());
     }
     //-----------------------------------------------------------------------
     void GLSLProgram::unloadHighLevelImpl(void)
     {
         if (isSupported())
         {
-            glDeleteObjectARB(mGLHandle);           
-            mGLHandle = 0;
+            glDeleteObjectARB(mGLShaderHandle);
+            mGLShaderHandle = 0;
 
             // destroy all programs using this shader
             GLSLLinkProgramManager::getSingletonPtr()->destroyAllByShader(this);
@@ -277,6 +263,9 @@ namespace Ogre {
 
         // Therefore instead, parse the source code manually and extract the uniforms
         createParameterMappingStructures(true);
+        mFloatLogicalToPhysical.reset();
+        mIntLogicalToPhysical.reset();
+
         GLSLLinkProgramManager::getSingleton().extractUniformsFromGLSL(
             mSource, *mConstantDefs, mName);
 
@@ -300,7 +289,6 @@ namespace Ogre {
         , mInputOperationType(RenderOperation::OT_TRIANGLE_LIST)
         , mOutputOperationType(RenderOperation::OT_TRIANGLE_LIST)
         , mMaxOutputVertices(3)
-        , mGLHandle(0)
     {
         // add parameter command "attach" to the material serializer dictionary
         if (createParamDictionary("GLSLProgram"))
@@ -308,9 +296,6 @@ namespace Ogre {
             setupBaseParamDictionary();
             ParamDictionary* dict = getParamDictionary();
 
-            dict->addParameter(ParameterDef("preprocessor_defines", 
-                "Preprocessor defines use to compile the program.",
-                PT_STRING),&msCmdPreprocessorDefines);
             dict->addParameter(ParameterDef("attach", 
                 "name of another GLSL program needed by this program",
                 PT_STRING),&msCmdAttach);
@@ -336,6 +321,7 @@ namespace Ogre {
         }
         // Manually assign language now since we use it immediately
         mSyntaxCode = "glsl";
+        mPassFFPStates = Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_FIXED_FUNCTION);
     }
 
     //-----------------------------------------------------------------------
@@ -346,7 +332,7 @@ namespace Ogre {
         {
             childShader->attachToProgramObject(programObject);
         }
-        glAttachObjectARB( programObject, mGLHandle );
+        glAttachObjectARB( programObject, mGLShaderHandle );
         GLenum glErr = glGetError();
         if(glErr != GL_NO_ERROR)
         {
@@ -358,7 +344,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void GLSLProgram::detachFromProgramObject( const GLhandleARB programObject )
     {
-        glDetachObjectARB(programObject, mGLHandle);
+        glDetachObjectARB(programObject, mGLShaderHandle);
 
         GLenum glErr = glGetError();
         if(glErr != GL_NO_ERROR)
@@ -385,6 +371,49 @@ namespace Ogre {
         static const String language = "glsl";
 
         return language;
+    }
+    //-----------------------------------------------------------------------------
+    void GLSLProgram::bindProgram(void)
+    {
+        // Tell the Link Program Manager what shader is to become active
+        GLSLLinkProgramManager::getSingleton().setActiveShader( mType, this );
+    }
+    //-----------------------------------------------------------------------------
+    void GLSLProgram::unbindProgram(void)
+    {
+        // Tell the Link Program Manager what shader is to become inactive
+        GLSLLinkProgramManager::getSingleton().setActiveShader( mType, NULL );
+    }
+
+    //-----------------------------------------------------------------------------
+    void GLSLProgram::bindProgramParameters(GpuProgramParametersSharedPtr params, uint16 mask)
+    {
+        // link can throw exceptions, ignore them at this point
+        try
+        {
+            // activate the link program object
+            GLSLLinkProgram* linkProgram = GLSLLinkProgramManager::getSingleton().getActiveLinkProgram();
+            // pass on parameters from params to program object uniforms
+            linkProgram->updateUniforms(params, mask, mType);
+        }
+        catch (Exception&) {}
+
+    }
+    //-----------------------------------------------------------------------------
+    bool GLSLProgram::isAttributeValid(VertexElementSemantic semantic, uint index)
+    {
+        // get link program - only call this in the context of bound program
+        GLSLLinkProgram* linkProgram = GLSLLinkProgramManager::getSingleton().getActiveLinkProgram();
+
+        if (linkProgram->isAttributeValid(semantic, index))
+        {
+            return true;
+        }
+        else
+        {
+            // fall back to default implementation, allow default bindings
+            return GLGpuProgramBase::isAttributeValid(semantic, index);
+        }
     }
 }
 }

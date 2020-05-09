@@ -255,10 +255,6 @@ void SceneManager::SkyRenderer::setSkyBox(
                 right = Vector3::UNIT_X * distance;
                 break;
             }
-            // Modify by orientation
-            middle = orientation * middle;
-            up = orientation * up;
-            right = orientation * right;
 
             // 3D cubic texture
             // Note UVs mirrored front/back
@@ -266,21 +262,20 @@ void SceneManager::SkyRenderer::setSkyBox(
             // since 3D coords will function correctly but it's really not worth
             // making the code more complicated for the sake of 16 verts
             // top left
-            Vector3 pos;
-            pos = middle + up - right;
-            mSkyBoxObj->position(pos);
+            Vector3 pos = middle + up - right;
+            mSkyBoxObj->position(orientation * pos);
             mSkyBoxObj->textureCoord(pos.normalisedCopy() * Vector3(1,1,-1));
             // bottom left
             pos = middle - up - right;
-            mSkyBoxObj->position(pos);
+            mSkyBoxObj->position(orientation * pos);
             mSkyBoxObj->textureCoord(pos.normalisedCopy() * Vector3(1,1,-1));
             // bottom right
             pos = middle - up + right;
-            mSkyBoxObj->position(pos);
+            mSkyBoxObj->position(orientation * pos);
             mSkyBoxObj->textureCoord(pos.normalisedCopy() * Vector3(1,1,-1));
             // top right
             pos = middle + up + right;
-            mSkyBoxObj->position(pos);
+            mSkyBoxObj->position(orientation * pos);
             mSkyBoxObj->textureCoord(pos.normalisedCopy() * Vector3(1,1,-1));
 
             uint16 base = i * 4;
@@ -372,78 +367,6 @@ void SceneManager::SkyRenderer::setSkyDome(
     mSkyDomeGenParameters.skyDomeXSegments = xsegments;
     mSkyDomeGenParameters.skyDomeYSegments = ysegments;
     mSkyDomeGenParameters.skyDomeYSegments_keep = ySegmentsToKeep;
-}
-
-//-----------------------------------------------------------------------
-MeshPtr SceneManager::SkyRenderer::createSkyboxPlane(
-                                      BoxPlane bp,
-                                      Real distance,
-                                      const Quaternion& orientation,
-                                      const String& groupName)
-{
-    Plane plane;
-    String meshName;
-    Vector3 up;
-
-    meshName = mSceneManager->mName + "SkyBoxPlane_";
-    // Set up plane equation
-    plane.d = distance;
-    switch(bp)
-    {
-    case BP_FRONT:
-        plane.normal = Vector3::UNIT_Z;
-        up = Vector3::UNIT_Y;
-        meshName += "Front";
-        break;
-    case BP_BACK:
-        plane.normal = -Vector3::UNIT_Z;
-        up = Vector3::UNIT_Y;
-        meshName += "Back";
-        break;
-    case BP_LEFT:
-        plane.normal = Vector3::UNIT_X;
-        up = Vector3::UNIT_Y;
-        meshName += "Left";
-        break;
-    case BP_RIGHT:
-        plane.normal = -Vector3::UNIT_X;
-        up = Vector3::UNIT_Y;
-        meshName += "Right";
-        break;
-    case BP_UP:
-        plane.normal = -Vector3::UNIT_Y;
-        up = Vector3::UNIT_Z;
-        meshName += "Up";
-        break;
-    case BP_DOWN:
-        plane.normal = Vector3::UNIT_Y;
-        up = -Vector3::UNIT_Z;
-        meshName += "Down";
-        break;
-    }
-    // Modify by orientation
-    plane.normal = orientation * plane.normal;
-    up = orientation * up;
-
-
-    // Check to see if existing plane
-    MeshManager& mm = MeshManager::getSingleton();
-    MeshPtr planeMesh = mm.getByName(meshName, groupName);
-    if(planeMesh)
-    {
-        // destroy existing
-        mm.remove(planeMesh->getHandle());
-    }
-    // Create new
-    Real planeSize = distance * 2;
-    const int BOX_SEGMENTS = 1;
-    planeMesh = mm.createPlane(meshName, groupName, plane, planeSize, planeSize,
-        BOX_SEGMENTS, BOX_SEGMENTS, false, 1, 1, 1, up);
-
-    //planeMesh->_dumpContents(meshName);
-
-    return planeMesh;
-
 }
 
 MeshPtr SceneManager::SkyRenderer::createSkydomePlane(

@@ -48,6 +48,7 @@ class _OgreRTSSExport FunctionStageRef
 public:
     /** call a library function
      * @param name the function name
+     * @param inout function argument
      */
     void callFunction(const char* name, const InOut& inout) const;
 
@@ -102,13 +103,11 @@ class _OgreRTSSExport Function : public RTShaderSystemAlloc
     friend ProgramManager;
 // Interface.
 public:
+    /// @deprecated do not use
     enum FunctionType
     {
-        // internal function (default)
         FFT_INTERNAL,
-        // Vertex program main
         FFT_VS_MAIN,
-        // Pixel shader main
         FFT_PS_MAIN
     };
 
@@ -141,6 +140,7 @@ public:
     /**
      * get input parameter by content
      * @param content
+     * @param type The type of the desired parameter.
      * @return parameter or NULL if not found
      */
     ParameterPtr getInputParameter(Parameter::Content content, GpuConstantType type = GCT_UNKNOWN)
@@ -164,6 +164,7 @@ public:
     /**
      * get output parameter by content
      * @param content
+     * @param type The type of the desired parameter.
      * @return parameter or NULL if not found
      */
     ParameterPtr getOutputParameter(Parameter::Content content, GpuConstantType type = GCT_UNKNOWN)
@@ -258,8 +259,8 @@ public:
     /** Delete all output parameters from this function. */
     void deleteAllOutputParameters();
 
-    /** get function type. */
-    FunctionType getFunctionType() const;
+    /// @deprecated do not use
+    OGRE_DEPRECATED FunctionType getFunctionType() const;
 
 
 protected:

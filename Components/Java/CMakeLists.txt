@@ -1,5 +1,3 @@
-find_package(SWIG 3.0.8)
-
 if(ANDROID)
 	set(JNI_FOUND TRUE)
 	add_library(cpufeatures STATIC ${ANDROID_NDK}/sources/android/cpufeatures/cpu-features.c)
@@ -24,6 +22,9 @@ if(MSVC)
 	add_definitions(/bigobj /wd4700)
 else()
 	add_definitions(-Wno-strict-aliasing -Wno-cast-qual -Wno-shadow -Wno-missing-declarations)
+	if(CMAKE_COMPILER_IS_GNUCXX)
+		add_definitions(-Wno-unused-but-set-variable)
+	endif()
 endif()
 
 set(CMAKE_SWIG_FLAGS -w401,314 -package org.ogre)
@@ -56,10 +57,6 @@ if(OGRE_BUILD_COMPONENT_OVERLAY)
 endif()
 
 if(OGRE_BUILD_COMPONENT_BITES)
-	if(SDL2_FOUND)
-		include_directories(${SDL2_INCLUDE_DIR})
-	endif()
-
 	set_source_files_properties(../Bites/include/OgreBites.i PROPERTIES CPLUSPLUS ON)
 
 	if(ANDROID)

@@ -20,6 +20,8 @@
 */
 #define OGRE_RESOURCEMANAGER_STRICT @OGRE_RESOURCEMANAGER_STRICT@
 
+#cmakedefine OGRE_NODELESS_POSITIONING
+
 #cmakedefine OGRE_CONFIG_LITTLE_ENDIAN
 #cmakedefine OGRE_CONFIG_BIG_ENDIAN
 
@@ -104,5 +106,7 @@ WARNING: Disabling this will make the samples unusable.
 #cmakedefine01 OGRE_PROFILING
 
 #cmakedefine01 OGRE_NO_QUAD_BUFFER_STEREO
+
+#cmakedefine01 OGRE_NO_LOCALE_STRCONVERT
 
 #endif

@@ -262,7 +262,7 @@ namespace Ogre
 
     bool ScriptCompiler::compile(const String &str, const String &source, const String &group)
     {
-        ConcreteNodeListPtr nodes = ScriptParser::parse(ScriptLexer::tokenize(str, source));
+        ConcreteNodeListPtr nodes = ScriptParser::parse(ScriptLexer::tokenize(str, source), source);
         return compile(nodes, group);
     }
 
@@ -369,7 +369,7 @@ namespace Ogre
         // Clear the past errors
         mErrors.clear();
 
-        ConcreteNodeListPtr cst = ScriptParser::parse(ScriptLexer::tokenize(str, source));
+        ConcreteNodeListPtr cst = ScriptParser::parse(ScriptLexer::tokenize(str, source), source);
 
         // Call the listener to intercept CST
         if(mListener)
@@ -491,23 +491,27 @@ namespace Ogre
                         processImports(*importedNodes);
                         processObjects(*importedNodes, *importedNodes);
                     }
+                    else
+                    {
+                        addError(CE_REFERENCETOANONEXISTINGOBJECT, import->file, import->line, import->source);
+                    }
+
                     if(importedNodes && !importedNodes->empty())
                         mImports.insert(std::make_pair(import->source, importedNodes));
                 }
 
+                ImportRequestMap::iterator iter = mImportRequests.lower_bound(import->source),
+                                           end = mImportRequests.upper_bound(import->source);
                 // Handle the target request now
                 // If it is a '*' import we remove all previous requests and just use the '*'
                 // Otherwise, ensure '*' isn't already registered and register our request
                 if(import->target == "*")
                 {
-                    mImportRequests.erase(mImportRequests.lower_bound(import->source),
-                        mImportRequests.upper_bound(import->source));
+                    mImportRequests.erase(iter, end);
                     mImportRequests.insert(std::make_pair(import->source, "*"));
                 }
                 else
                 {
-                    ImportRequestMap::iterator iter = mImportRequests.lower_bound(import->source),
-                        end = mImportRequests.upper_bound(import->source);
                     if(iter == end || iter->second != "*")
                     {
                         mImportRequests.insert(std::make_pair(import->source, import->target));
@@ -541,6 +545,9 @@ namespace Ogre
                         AbstractNodeList newNodes = locateTarget(*it->second, j->second);
                         if(!newNodes.empty())
                             mImportTable.insert(mImportTable.begin(), newNodes.begin(), newNodes.end());
+                        else
+                            // -1 for line as we lost that info here
+                            addError(CE_REFERENCETOANONEXISTINGOBJECT, nodes.front()->file, -1, j->second);
                     }
                 }
             }
@@ -562,7 +569,7 @@ namespace Ogre
             if (!stream)
                 return retval;
 
-            nodes = ScriptParser::parse(ScriptLexer::tokenize(stream->getAsString(), name));
+            nodes = ScriptParser::parse(ScriptLexer::tokenize(stream->getAsString(), name), name);
         }
 
         if(nodes)
@@ -918,7 +925,7 @@ namespace Ogre
                 if(varAccess.first)
                 {
                     // Found the variable, so process it and insert it into the tree
-                    ConcreteNodeListPtr cst = ScriptParser::parseChunk(ScriptLexer::tokenize(varAccess.second, var->file));
+                    ConcreteNodeListPtr cst = ScriptParser::parseChunk(ScriptLexer::tokenize(varAccess.second, var->file), var->file);
                     AbstractNodeListPtr ast = convertToAST(*cst);
 
                     // Set up ownership for these nodes
@@ -1185,7 +1192,7 @@ namespace Ogre
         mIds["target_output"] = ID_TARGET_OUTPUT;
 
         mIds["input"] = ID_INPUT;
-        mIds["none"] = ID_NONE;
+        //mIds["none"] = ID_NONE; - already registered
         mIds["previous"] = ID_PREVIOUS;
         mIds["target_width"] = ID_TARGET_WIDTH;
         mIds["target_height"] = ID_TARGET_HEIGHT;
@@ -1249,6 +1256,7 @@ namespace Ogre
         mIds["sampler_ref"] = ID_SAMPLER_REF;
         mIds["thread_groups"] = ID_THREAD_GROUPS;
         mIds["render_custom"] = ID_RENDER_CUSTOM;
+        mIds["auto"] = ID_AUTO;
 
 		mLargestRegisteredWordId = ID_END_BUILTIN_IDS;
 	}
@@ -1653,7 +1661,7 @@ namespace Ogre
     void ScriptCompilerManager::parseScript(DataStreamPtr& stream, const String& groupName)
     {
         ConcreteNodeListPtr nodes =
-            ScriptParser::parse(ScriptLexer::tokenize(stream->getAsString(), stream->getName()));
+            ScriptParser::parse(ScriptLexer::tokenize(stream->getAsString(), stream->getName()), stream->getName());
         {
             // compile is not reentrant
             OGRE_LOCK_AUTO_MUTEX;

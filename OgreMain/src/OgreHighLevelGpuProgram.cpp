@@ -31,12 +31,36 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+    /// Command object for setting macro defines
+    class CmdPreprocessorDefines : public ParamCommand
+    {
+    public:
+        //-----------------------------------------------------------------------
+        String doGet(const void* target) const
+        {
+            return static_cast<const HighLevelGpuProgram*>(target)->getPreprocessorDefines();
+        }
+        void doSet(void* target, const String& val)
+        {
+            static_cast<HighLevelGpuProgram*>(target)->setPreprocessorDefines(val);
+        }
+    };
+    static CmdPreprocessorDefines msCmdPreprocessorDefines;
+
+    void HighLevelGpuProgram::setupBaseParamDictionary()
+    {
+        GpuProgram::setupBaseParamDictionary();
+        ParamDictionary* dict = getParamDictionary();
+
+        dict->addParameter(ParameterDef("preprocessor_defines", "", PT_STRING), &msCmdPreprocessorDefines);
+    }
+
     //---------------------------------------------------------------------------
     HighLevelGpuProgram::HighLevelGpuProgram(ResourceManager* creator, 
         const String& name, ResourceHandle handle, const String& group, 
         bool isManual, ManualResourceLoader* loader)
         : GpuProgram(creator, name, handle, group, isManual, loader), 
-        mHighLevelLoaded(false), mAssemblerProgram(), mConstantDefsBuilt(false)
+        mHighLevelLoaded(false), mConstantDefsBuilt(false), mAssemblerProgram()
     {
     }
     //---------------------------------------------------------------------------
@@ -50,7 +74,7 @@ namespace Ogre
             // create low-level implementation
             createLowLevelImpl();
             // load constructed assembler program (if it exists)
-            if (mAssemblerProgram && mAssemblerProgram.get() != this)
+            if (mAssemblerProgram)
             {
                 mAssemblerProgram->load();
             }
@@ -60,7 +84,7 @@ namespace Ogre
     //---------------------------------------------------------------------------
     void HighLevelGpuProgram::unloadImpl()
     {   
-        if (mAssemblerProgram && mAssemblerProgram.get() != this)
+        if (mAssemblerProgram)
         {
             mAssemblerProgram->getCreator()->remove(mAssemblerProgram);
             mAssemblerProgram.reset();
@@ -86,6 +110,7 @@ namespace Ogre
         // Only populate named parameters if we can support this program
         if (this->isSupported())
         {
+            safePrepare(); // loads source
             loadHighLevel();
             // Errors during load may have prevented compile
             if (this->isSupported())
@@ -100,12 +125,9 @@ namespace Ogre
     }
     size_t HighLevelGpuProgram::calculateSize(void) const
     {
-        size_t memSize = 0;
-        memSize += sizeof(bool);
-        if(mAssemblerProgram && (mAssemblerProgram.get() != this) )
+        size_t memSize = GpuProgram::calculateSize();
+        if(mAssemblerProgram)
             memSize += mAssemblerProgram->calculateSize();
-
-        memSize += GpuProgram::calculateSize();
 
         return memSize;
     }
@@ -174,40 +196,8 @@ namespace Ogre
     {
         if (!mHighLevelLoaded)
         {
-            try 
-            {
-                loadHighLevelImpl();
-                mHighLevelLoaded = true;
-                if (mDefaultParams)
-                {
-                    // Keep a reference to old ones to copy
-                    GpuProgramParametersSharedPtr savedParams = mDefaultParams;
-                    // reset params to stop them being referenced in the next create
-                    mDefaultParams.reset();
-
-                    // Create new params
-                    mDefaultParams = createParameters();
-
-                    // Copy old (matching) values across
-                    // Don't use copyConstantsFrom since program may be different
-                    mDefaultParams->copyMatchingNamedConstantsFrom(*savedParams.get());
-
-                }
-
-            }
-            catch (const RuntimeAssertionException&)
-            {
-                throw;
-            }
-            catch (const Exception& e)
-            {
-                // will already have been logged
-                LogManager::getSingleton().stream(LML_CRITICAL)
-                    << "High-level program '" << mName << "' is not supported: "
-                    << e.getDescription();
-
-                mCompileError = true;
-            }
+            GpuProgram::loadImpl();
+            mHighLevelLoaded = !mCompileError;
         }
     }
     //---------------------------------------------------------------------------
@@ -222,23 +212,6 @@ namespace Ogre
 
             mHighLevelLoaded = false;
         }
-    }
-    //---------------------------------------------------------------------------
-    void HighLevelGpuProgram::loadHighLevelImpl(void)
-    {
-        if (mLoadFromFile)
-        {
-            // find & load source code
-            DataStreamPtr stream = 
-                ResourceGroupManager::getSingleton().openResource(
-                    mFilename, mGroup, this);
-
-            mSource = stream->getAsString();
-        }
-
-        loadFromSource();
-
-
     }
     //---------------------------------------------------------------------
     const GpuNamedConstants& HighLevelGpuProgram::getConstantDefinitions() const
@@ -345,16 +318,8 @@ namespace Ogre
             if (newLineBefore != String::npos && newLineBefore >= startMarker)
                 outSource.append(inSource.substr(startMarker, newLineBefore-startMarker+1));
 
-            size_t lineCount = 0;
-            size_t lineCountPos = 0;
-
-            // Count the line number of #include statement
-            lineCountPos = outSource.find('\n');
-            while(lineCountPos != String::npos)
-            {
-                lineCountPos = outSource.find('\n', lineCountPos+1);
-                lineCount++;
-            }
+            // Count the line number of #include statement, account for new line after the statement
+            size_t lineCount = std::count(inSource.begin(), inSource.begin() + newLineAfter, '\n') + 1;
 
             // use include filename if supported (cg) - else use include line as id (glsl)
             String incLineFilename = supportsFilename ? StringUtil::format(" \"%s\"", filename.c_str()) : StringUtil::format(" %zu", lineCount);
@@ -365,7 +330,7 @@ namespace Ogre
             outSource.append(resource->getAsString());
 
             // Add #line to the end of the included file to correct the line count
-            outSource.append("\n#line " + std::to_string(lineCount) + lineFilename + "\n");
+            outSource.append("\n#line " + std::to_string(lineCount) + lineFilename);
 
             startMarker = newLineAfter;
 

@@ -261,7 +261,6 @@ namespace Ogre
 
         // Low-level overridden members
         void setConfigOption( const String &name, const String &value );
-        void reinitialise();
         void shutdown();
         void setAmbientLight( float r, float g, float b );
         void setShadingType( ShadeOptions so );
@@ -293,7 +292,6 @@ namespace Ogre
         void _setTextureBlendMode( size_t unit, const LayerBlendModeEx& bm );
         void _setTextureAddressingMode(size_t stage, const Sampler::UVWAddressingMode& uvw);
         void _setTextureMatrix( size_t unit, const Matrix4 &xform );
-        void _setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp );
         void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
         void _setViewport( Viewport *vp );      
         void _beginFrame();
@@ -303,7 +301,7 @@ namespace Ogre
         void _setCullingMode( CullingMode mode );
         void _setDepthBufferParams( bool depthTest = true, bool depthWrite = true, CompareFunction depthFunction = CMPF_LESS_EQUAL );
         void _setDepthBufferCheckEnabled( bool enabled = true );
-        void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha);
+        void setColourBlendState(const ColourBlendState& state);
         void _setDepthBufferWriteEnabled(bool enabled = true);
         void _setDepthBufferFunction( CompareFunction func = CMPF_LESS_EQUAL );
         void _setDepthBias(float constantBias, float slopeScaleBias);
@@ -325,7 +323,7 @@ namespace Ogre
         void bindGpuProgramParameters(GpuProgramType gptype, 
             const GpuProgramParametersPtr& params, uint16 variabilityMask);
 
-        void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);
+        void setScissorTest(bool enabled, const Rect& rect = Rect());
         void clearFrameBuffer(unsigned int buffers, 
             const ColourValue& colour = ColourValue::Black, 
             Real depth = 1.0f, unsigned short stencil = 0);
@@ -359,6 +357,8 @@ namespace Ogre
         static IDirect3DDevice9* getResourceCreationDevice(UINT index);
         static IDirect3DDevice9* getActiveD3D9Device();
         static IDirect3DDevice9* getActiveD3D9DeviceIfExists();
+
+        uint32 getAdapterNumber();
 
         /** Check which depthStencil formats can be used with a certain pixel format,
             and return the best suited.

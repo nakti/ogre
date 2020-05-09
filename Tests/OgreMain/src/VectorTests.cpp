@@ -26,9 +26,7 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include <gtest/gtest.h>
-#include "OgreVector2.h"
-#include "OgreVector3.h"
-#include "OgreVector4.h"
+#include "OgreVector.h"
 #include "OgreMatrix4.h"
 
 using namespace Ogre;
@@ -169,6 +167,23 @@ TEST(VectorTests, Matrix3SVD)
             EXPECT_NEAR(ref[i][j], mat[i][j], Matrix3::EPSILON);
 }
 //--------------------------------------------------------------------------
+TEST(VectorTests, Matrix3QDU)
+{
+    Matrix3 linear = Matrix3::IDENTITY * -2; // some scaling and reflection
+    Matrix3 rot;
+    Vector3 scale, shear;
+
+    linear.QDUDecomposition(rot, scale, shear);
+
+    Matrix3 ref_rot = Matrix3::IDENTITY;
+    for(int i = 0; i < 3; i++)
+        for(int j = 0; j < 3; j++)
+            EXPECT_FLOAT_EQ(ref_rot[i][j], rot[i][j]);
+
+    for(int i = 0; i < 3; i++)
+        EXPECT_FLOAT_EQ(scale[i], -2);
+}
+//--------------------------------------------------------------------------
 TEST(VectorTests, TransformBaseArrayLoading)
 {
     typedef TransformBase<3, float> Matrix3x4f;
@@ -193,4 +208,23 @@ TEST(VectorTests, TransformBaseArrayLoading)
     EXPECT_EQ(9, mat1[2][1]);
     EXPECT_EQ(10, mat1[2][2]);
     EXPECT_EQ(11, mat1[2][3]);
+}
+//--------------------------------------------------------------------------
+TEST(VectorTests, TypeCasts)
+{
+    int arr[16] = { 0 };
+
+    Affine3 affine(arr);
+    Matrix4 matrix(arr);
+
+    EXPECT_EQ(affine, Affine3::ZERO);
+    EXPECT_EQ(matrix, Matrix4::ZERO);
+
+    typedef TransformBase<4, int> Matrix4i; // something that is neither float nor double
+    Matrix4i imat;
+
+    Vector3i vec(1, 2, 3);
+    imat.setTrans(vec);
+
+    EXPECT_EQ(imat.getTrans(), vec);
 }

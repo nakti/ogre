@@ -128,69 +128,70 @@ if(OGRE_BUILD_DEPENDENCIES AND NOT EXISTS ${OGREDEPS_PATH})
 
     message(STATUS "Building ZZIPlib")
     file(DOWNLOAD
-        https://github.com/gdraheim/zziplib/archive/develop.zip
-        ${PROJECT_BINARY_DIR}/zziplib-develop.tar.gz)
+        https://github.com/gdraheim/zziplib/archive/v0.13.71.tar.gz
+        ${PROJECT_BINARY_DIR}/zziplib-0.13.71.tar.gz)
     execute_process(COMMAND ${CMAKE_COMMAND}
-        -E tar xf zziplib-develop.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+        -E tar xf zziplib-0.13.71.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
     execute_process(COMMAND ${BUILD_COMMAND_COMMON}
         -DZLIB_ROOT=${OGREDEPS_PATH}
         -DZZIPMMAPPED=OFF -DZZIPCOMPAT=OFF -DZZIPLIBTOOL=OFF -DZZIPFSEEKO=OFF -DZZIPWRAP=OFF -DZZIPSDL=OFF -DZZIPBINS=OFF -DZZIPTEST=OFF -DZZIPDOCS=OFF -DBASH=sh
         -DBUILD_STATIC_LIBS=TRUE
         -DBUILD_SHARED_LIBS=${OGREDEPS_SHARED}
-        ${PROJECT_BINARY_DIR}/zziplib-develop
-        WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/zziplib-develop)
+        ${PROJECT_BINARY_DIR}/zziplib-0.13.71
+        WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/zziplib-0.13.71)
     execute_process(COMMAND ${CMAKE_COMMAND} 
-        --build ${PROJECT_BINARY_DIR}/zziplib-develop ${BUILD_COMMAND_OPTS})
+        --build ${PROJECT_BINARY_DIR}/zziplib-0.13.71 ${BUILD_COMMAND_OPTS})
 
     message(STATUS "Building pugixml")
     file(DOWNLOAD
-        https://github.com/zeux/pugixml/releases/download/v1.9/pugixml-1.9.tar.gz
-        ${PROJECT_BINARY_DIR}/pugixml-1.9.tar.gz)
+        https://github.com/zeux/pugixml/releases/download/v1.10/pugixml-1.10.tar.gz
+        ${PROJECT_BINARY_DIR}/pugixml-1.10.tar.gz)
     execute_process(COMMAND ${CMAKE_COMMAND}
-        -E tar xf pugixml-1.9.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+        -E tar xf pugixml-1.10.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
     execute_process(COMMAND ${BUILD_COMMAND_COMMON}
-        ${PROJECT_BINARY_DIR}/pugixml-1.9
-        WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/pugixml-1.9)
+        -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE # this will be linked into a shared lib
+        ${PROJECT_BINARY_DIR}/pugixml-1.10
+        WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/pugixml-1.10)
     execute_process(COMMAND ${CMAKE_COMMAND}
-        --build ${PROJECT_BINARY_DIR}/pugixml-1.9 ${BUILD_COMMAND_OPTS})
+        --build ${PROJECT_BINARY_DIR}/pugixml-1.10 ${BUILD_COMMAND_OPTS})
 
-    find_package(Freetype)
+    #find_package(Freetype)
     if (NOT FREETYPE_FOUND)
         message(STATUS "Building freetype")
         file(DOWNLOAD
-            https://download.savannah.gnu.org/releases/freetype/freetype-2.9.tar.gz
-            ${PROJECT_BINARY_DIR}/freetype-2.9.tar.gz)
+            https://download.savannah.gnu.org/releases/freetype/freetype-2.10.1.tar.gz
+            ${PROJECT_BINARY_DIR}/freetype-2.10.1.tar.gz)
         execute_process(COMMAND ${CMAKE_COMMAND}
-            -E tar xf freetype-2.9.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+            -E tar xf freetype-2.10.1.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
         # patch toolchain for iOS
         execute_process(COMMAND ${CMAKE_COMMAND} -E copy
             ${PROJECT_SOURCE_DIR}/CMake/toolchain/ios.toolchain.xcode.cmake
-            freetype-2.9/builds/cmake/iOS.cmake
+            freetype-2.10.1/builds/cmake/iOS.cmake
             WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
         execute_process(COMMAND ${BUILD_COMMAND_COMMON}
             -DBUILD_SHARED_LIBS=${OGREDEPS_SHARED}
             -DWITH_PNG=OFF
-            -DWITH_BZip2=OFF # tries to use it on iOS otherwise
+            -DCMAKE_DISABLE_FIND_PACKAGE_BZip2=TRUE # tries to use it on iOS otherwise
             # workaround for broken iOS toolchain in freetype
-            -DPROJECT_SOURCE_DIR=${PROJECT_BINARY_DIR}/freetype-2.9
-            ${PROJECT_BINARY_DIR}/freetype-2.9
-            WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/freetype-2.9/objs)
+            -DPROJECT_SOURCE_DIR=${PROJECT_BINARY_DIR}/freetype-2.10.1
+            ${PROJECT_BINARY_DIR}/freetype-2.10.1
+            WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/freetype-2.10.1/objs)
         execute_process(COMMAND ${CMAKE_COMMAND}
-            --build ${PROJECT_BINARY_DIR}/freetype-2.9/objs ${BUILD_COMMAND_OPTS})
+            --build ${PROJECT_BINARY_DIR}/freetype-2.10.1/objs ${BUILD_COMMAND_OPTS})
     endif()
 
     if(MSVC OR MINGW) # other platforms dont need this
         message(STATUS "Building SDL2")
         file(DOWNLOAD
-            https://libsdl.org/release/SDL2-2.0.8.tar.gz
-            ${PROJECT_BINARY_DIR}/SDL2-2.0.8.tar.gz)
+            https://libsdl.org/release/SDL2-2.0.10.tar.gz
+            ${PROJECT_BINARY_DIR}/SDL2-2.0.10.tar.gz)
         execute_process(COMMAND ${CMAKE_COMMAND} 
-            -E tar xf SDL2-2.0.8.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+            -E tar xf SDL2-2.0.10.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
         execute_process(COMMAND ${CMAKE_COMMAND}
             -E make_directory ${PROJECT_BINARY_DIR}/SDL2-build)
         execute_process(COMMAND ${BUILD_COMMAND_COMMON}
             -DSDL_STATIC=FALSE
-            ${PROJECT_BINARY_DIR}/SDL2-2.0.8
+            ${PROJECT_BINARY_DIR}/SDL2-2.0.10
             WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/SDL2-build)
         execute_process(COMMAND ${CMAKE_COMMAND}
             --build ${PROJECT_BINARY_DIR}/SDL2-build ${BUILD_COMMAND_OPTS})
@@ -223,9 +224,6 @@ macro_log_feature(FREETYPE_FOUND "freetype" "Portable font engine" "http://www.f
 if (UNIX AND NOT APPLE AND NOT ANDROID AND NOT EMSCRIPTEN)
   find_package(X11)
   macro_log_feature(X11_FOUND "X11" "X Window system" "http://www.x.org" TRUE "" "")
-  find_library(XAW_LIBRARY NAMES Xaw Xaw7 PATHS ${OGRE_DEP_SEARCH_PATH} ${DEP_LIB_SEARCH_DIR} ${X11_LIB_SEARCH_PATH})
-  macro_log_feature(XAW_LIBRARY "Xaw" "X11 Athena widget set" "http://www.x.org" TRUE "" "")
-  mark_as_advanced(XAW_LIBRARY)
 endif ()
 
 
@@ -235,6 +233,7 @@ endif ()
 
 # Find OpenGL
 if(NOT ANDROID AND NOT EMSCRIPTEN)
+  set(OpenGL_GL_PREFERENCE LEGACY) # we want to use OPENGL_gl_LIBRARY for now
   find_package(OpenGL)
   macro_log_feature(OPENGL_FOUND "OpenGL" "Support for the OpenGL and OpenGL 3+ render systems" "http://www.opengl.org/" FALSE "" "")
 endif()
@@ -281,6 +280,10 @@ find_package(PythonInterp)
 find_package(PythonLibs)
 macro_log_feature(PYTHONLIBS_FOUND "Python" "Language bindings to use OGRE from Python" "http://www.python.org/" FALSE "" "")
 
+# SWIG
+find_package(SWIG 3.0.8 QUIET)
+macro_log_feature(SWIG_FOUND "SWIG" "Language bindings (Python, Java, C#) for OGRE" "http://www.swig.org/" FALSE "" "")
+
 #######################################################################
 # Samples dependencies
 #######################################################################
@@ -288,19 +291,25 @@ macro_log_feature(PYTHONLIBS_FOUND "Python" "Language bindings to use OGRE from 
 # Find sdl2
 if(NOT ANDROID AND NOT EMSCRIPTEN)
   # find script does not work in cross compilation environment
-  find_package(SDL2)
+  find_package(SDL2 QUIET)
   macro_log_feature(SDL2_FOUND "SDL2" "Simple DirectMedia Library needed for input handling in samples" "https://www.libsdl.org/" FALSE "" "")
-  if(SDL2_FOUND AND WIN32 AND NOT SDL2_BINARY)
-    # fix linking static SDL2 on windows
-    set(SDL2_LIBRARY ${SDL2_LIBRARY} winmm.lib imm32.lib version.lib)
+  if(SDL2_FOUND AND NOT TARGET SDL2::SDL2)
+    add_library(SDL2::SDL2 INTERFACE IMPORTED)
+    set_target_properties(SDL2::SDL2 PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIRS}"
+        INTERFACE_LINK_LIBRARIES "${SDL2_LIBRARIES}"
+    )
   endif()
+
+  find_package(Qt5 COMPONENTS Core Gui QUIET)
+  macro_log_feature(Qt5_FOUND "Qt" "optional integration with the Qt Library for window creation and input" "http://www.qt.io/" FALSE "" "")
 endif()
 
 #######################################################################
 # Tools
 #######################################################################
 
-find_package(Doxygen)
+find_package(Doxygen QUIET)
 macro_log_feature(DOXYGEN_FOUND "Doxygen" "Tool for building API documentation" "http://doxygen.org" FALSE "" "")
 
 # Find Softimage SDK

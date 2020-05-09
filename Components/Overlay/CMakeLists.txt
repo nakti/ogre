@@ -25,12 +25,14 @@ if(OGRE_BUILD_COMPONENT_OVERLAY_IMGUI)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui/imgui_widgets.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui/imgui_demo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui/misc/freetype/imgui_freetype.cpp)
+else()
+    list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreImGuiOverlay.cpp")
 endif()
 
 # setup target
 add_library(OgreOverlay ${OGRE_COMP_LIB_TYPE} ${HEADER_FILES} ${SOURCE_FILES})
 set_target_properties(OgreOverlay PROPERTIES VERSION ${OGRE_SOVERSION} SOVERSION ${OGRE_SOVERSION})
-target_link_libraries(OgreOverlay PUBLIC OgreMain PRIVATE "${FREETYPE_LIBRARIES}" ZLIB::ZLIB)
+target_link_libraries(OgreOverlay PUBLIC OgreMain PRIVATE ${FREETYPE_LIBRARIES} ZLIB::ZLIB)
 target_include_directories(OgreOverlay PUBLIC 
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   $<INSTALL_INTERFACE:include/OGRE/Overlay>

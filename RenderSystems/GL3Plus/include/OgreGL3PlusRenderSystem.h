@@ -56,6 +56,7 @@ namespace Ogre {
     */
     class _OgreGL3PlusExport GL3PlusRenderSystem : public GLRenderSystemCommon
     {
+        friend class GL3PlusSampler;
     private:
         /// Rendering loop control
         bool mStopRendering;
@@ -71,24 +72,11 @@ namespace Ogre {
 
         GLint mLargestSupportedAnisotropy;
 
-        /// Store last colour write state
-        bool mColourWrite[4];
-
         /// Store last depth write state
         bool mDepthWrite;
 
-        /// Store last scissor enable state
-        bool mScissorsEnabled;
-
-        /// Store scissor box
-        int mScissorBox[4];
-
         /// Store last stencil mask state
         uint32 mStencilWriteMask;
-
-        typedef std::list<GL3PlusContext*> GL3PlusContextList;
-        /// List of background thread contexts
-        GL3PlusContextList mBackgroundContextList;
 
         // statecaches are per context
         GL3PlusStateCacheManager* mStateCacheManager;
@@ -107,6 +95,8 @@ namespace Ogre {
 
         /// Check if the GL system has already been initialised
         bool mGLInitialised;
+
+        bool mSeparateShaderObjectsEnabled;
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 		/// @copydoc RenderSystem::setDrawBuffer
@@ -138,6 +128,8 @@ namespace Ogre {
         const String& getName(void) const;
 
         void _initialise() override;
+
+        void initConfigOptions();
 
         virtual RenderSystemCapabilities* createRenderSystemCapabilities() const;
 
@@ -175,8 +167,6 @@ namespace Ogre {
 
         void _setViewport(Viewport *vp);
 
-        void _beginFrame(void);
-
         void _endFrame(void);
 
         void _setCullingMode(CullingMode mode);
@@ -191,7 +181,7 @@ namespace Ogre {
 
         void _setDepthBias(float constantBias, float slopeScaleBias);
 
-        void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha);
+        void setColourBlendState(const ColourBlendState& state);
 
         void _setPolygonMode(PolygonMode level);
 
@@ -213,17 +203,16 @@ namespace Ogre {
 
         void _render(const RenderOperation& op);
 
-        void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);
+        void _getDepthStencilFormatFor(PixelFormat internalColourFormat,
+                                       uint32* depthFormat,
+                                       uint32* stencilFormat);
+
+        void setScissorTest(bool enabled, const Rect& rect = Rect());
 
         void clearFrameBuffer(unsigned int buffers,
                               const ColourValue& colour = ColourValue::Black,
                               Real depth = 1.0f, unsigned short stencil = 0);
         HardwareOcclusionQuery* createHardwareOcclusionQuery(void);
-        OGRE_MUTEX(mThreadInitMutex);
-        void registerThread();
-        void unregisterThread();
-        void preExtraThreadsStarted();
-        void postExtraThreadsStarted();
 
         // ----------------------------------
         // GL3PlusRenderSystem specific members
@@ -250,9 +239,6 @@ namespace Ogre {
         /** Switch GL context, dealing with involved internal cached states too
          */
         void _switchContext(GL3PlusContext *context);
-        /** One time initialization for the RenderState of a context. Things that
-            only need to be set once, like the LightingModel can be defined here.
-        */
         void _oneTimeContextInitialization();
         void initialiseContext(RenderWindow* primary);
         /**
@@ -267,8 +253,6 @@ namespace Ogre {
         void unbindGpuProgram(GpuProgramType gptype);
         void bindGpuProgramParameters(GpuProgramType gptype, const GpuProgramParametersPtr& params, uint16 mask);
 
-        /// @copydoc RenderSystem::_setSeparateSceneBlending
-        void _setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp );
         /// @copydoc RenderSystem::_setAlphaRejectSettings
         void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
         /// @copydoc RenderSystem::getDisplayMonitorCount

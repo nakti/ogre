@@ -65,9 +65,8 @@ namespace Ogre {
         public:
             virtual ~CodecData() {}
 
-            /** Returns the type of the data.
-            */
-            virtual String dataType() const { return "CodecData"; }
+            /// @deprecated do not use
+            OGRE_DEPRECATED virtual String dataType() const { return "CodecData"; }
         };
         typedef SharedPtr<CodecData> CodecDataPtr;
 
@@ -78,15 +77,7 @@ namespace Ogre {
         
         /** Registers a new codec in the database.
         */
-        static void registerCodec( Codec *pCodec )
-        {
-            CodecList::iterator i = msMapCodecs.find(pCodec->getType());
-            if (i != msMapCodecs.end())
-                OGRE_EXCEPT(Exception::ERR_DUPLICATE_ITEM,
-                            pCodec->getType() + " already has a registered codec.");
-
-            msMapCodecs[pCodec->getType()] = pCodec;
-        }
+        static void registerCodec( Codec *pCodec );
 
         /** Return whether a codec is registered already. 
         */
@@ -102,8 +93,8 @@ namespace Ogre {
             msMapCodecs.erase(pCodec->getType());
         }
 
-        /** Gets the iterator for the registered codecs. */
-        static CodecIterator getCodecIterator(void)
+        /// @deprecated use getExtensions()
+        OGRE_DEPRECATED static CodecIterator getCodecIterator(void)
         {
             return CodecIterator(msMapCodecs.begin(), msMapCodecs.end());
         }
@@ -125,7 +116,7 @@ namespace Ogre {
         /** Codes the data in the input stream and saves the result in the output
             stream.
         */
-        virtual DataStreamPtr encode(const MemoryDataStreamPtr& input, const CodecDataPtr& pData) const = 0;
+        virtual DataStreamPtr encode(const MemoryDataStreamPtr& input, const CodecDataPtr& pData) const;
         /** Codes the data in the input chunk and saves the result in the output
             filename provided. Provided for efficiency since coding to memory is
             progressive therefore memory required is unknown leading to reallocations.
@@ -133,7 +124,7 @@ namespace Ogre {
         @param outFileName The filename to write to
         @param pData Extra information to be passed to the codec (codec type specific)
         */
-        virtual void encodeToFile(const MemoryDataStreamPtr& input, const String& outFileName, const CodecDataPtr& pData) const = 0;
+        virtual void encodeToFile(const MemoryDataStreamPtr& input, const String& outFileName, const CodecDataPtr& pData) const;
 
         /// Result of a decoding; both a decoded data stream and CodecData metadata
         typedef std::pair<MemoryDataStreamPtr, CodecDataPtr> DecodeResult;
@@ -146,9 +137,8 @@ namespace Ogre {
         */
         virtual String getType() const = 0;
 
-        /** Returns the type of the data that supported by this codec as a String
-        */
-        virtual String getDataType() const = 0;
+        /// @deprecated do not use
+        OGRE_DEPRECATED virtual String getDataType() const = 0;
 
         /** Returns whether a magic number header matches this codec.
         @param magicNumberPtr Pointer to a stream of bytes which should identify the file.
@@ -156,7 +146,7 @@ namespace Ogre {
             a different size magic number.
         @param maxbytes The number of bytes passed
         */
-        virtual bool magicNumberMatch(const char *magicNumberPtr, size_t maxbytes) const 
+        bool magicNumberMatch(const char *magicNumberPtr, size_t maxbytes) const
         { return !magicNumberToFileExt(magicNumberPtr, maxbytes).empty(); }
         /** Maps a magic number header to a file extension, if this codec recognises it.
         @param magicNumberPtr Pointer to a stream of bytes which should identify the file.

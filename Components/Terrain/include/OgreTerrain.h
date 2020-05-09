@@ -31,7 +31,7 @@ THE SOFTWARE.
 
 #include "OgreTerrainPrerequisites.h"
 #include "OgreCommon.h"
-#include "OgreVector3.h"
+#include "OgreVector.h"
 #include "OgreAxisAlignedBox.h"
 #include "OgreSceneManager.h"
 #include "OgreTerrainMaterialGenerator.h"
@@ -536,7 +536,8 @@ namespace Ogre
             GpuBufferAllocator() {}
             virtual ~GpuBufferAllocator() {}
 
-            /** Allocate (or reuse) vertex buffers for a terrain LOD. 
+            /** Allocate (or reuse) vertex buffers for a terrain LOD.
+            @param forTerrain
             @param numVertices The total number of vertices
             @param destPos Pointer to a vertex buffer for positions, to be bound
             @param destDelta Pointer to a vertex buffer for deltas, to be bound

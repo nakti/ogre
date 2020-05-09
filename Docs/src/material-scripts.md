@@ -192,13 +192,15 @@ Techniques also contain one or more @ref Passes (and there must be at least one)
 
 ## shadow\_caster\_material
 
-When using @ref Texture_002dbased-Shadows you can specify an alternate material to use when rendering the object using this material into the shadow texture. This is like a more advanced version of using shadow\_caster\_vertex\_program, however note that for the moment you are expected to render the shadow in one pass, i.e. only the first pass is respected.
+When using @ref Texture_002dbased-Shadows you can specify an alternate material to use when rendering the object using this material into the shadow texture. This is like a more advanced version of using @c shadow_caster_vertex_program, however note that for the moment you are expected to render the shadow in one pass, i.e. only the first pass is respected.
 
 <a name="shadow_005freceiver_005fmaterial"></a><a name="shadow_005freceiver_005fmaterial-1"></a>
 
 ## shadow\_receiver\_material
 
-When using @ref Texture_002dbased-Shadows you can specify an alternate material to use when performing the receiver shadow pass. Note that this explicit ’receiver’ pass is only done when you’re **not** using @ref Integrated-Texture-Shadows - i.e. the shadow rendering is done separately (either as a modulative pass, or a masked light pass). This is like a more advanced version of using shadow\_receiver\_vertex\_program and shadow\_receiver\_fragment\_program, however note that for the moment you are expected to render the shadow in one pass, i.e. only the first pass is respected.
+When using @ref Texture_002dbased-Shadows you can specify an alternate material to use when performing the receiver shadow pass. This is like a more advanced version of using @c shadow_receiver_vertex_program and @c shadow_receiver_fragment_program, however note that for the moment you are expected to render the shadow in one pass, i.e. only the first pass is respected.
+
+@note This explicit ’receiver’ pass is only done when you’re **not** using @ref Integrated-Texture-Shadows - i.e. the shadow rendering is done separately (either as a modulative pass, or a masked light pass).
 
 <a name="gpu_005fvendor_005frule"></a><a name="gpu_005fdevice_005frule"></a><a name="gpu_005fvendor_005frule-and-gpu_005fdevice_005frule"></a>
 
@@ -922,11 +924,11 @@ Default: line_width 1
 
 # Texture Units {#Texture-Units}
 
-Here are the attributes you can use in a ’texture\_unit’ section of a .material script:
+Here are the attributes you can use in a @c texture_unit section of a .material script:
 
 <a name="Available-Texture-Layer-Attributes"></a>
 
-## Available Texture Layer Attributes
+## Available Texture Unit Attributes
 
 -   [texture\_alias](#texture_005falias)
 -   [texture](#texture)
@@ -949,9 +951,13 @@ Here are the attributes you can use in a ’texture\_unit’ section of a .mater
 -   [content\_type](#content_005ftype)
 -   [sampler_ref](#sampler_ref)
 
-Additionally you can use all attributes of @ref Samplers directly to implicitly create a Ogre::Sampler contained in this TextureUnit.
+@note Furthermore all attributes of @ref Samplers are available. Using any of them will create a new Ogre::Sampler local to the texture unit.
+This means that any changes you made to the Default Sampler e.g. via Ogre::MaterialManager::setDefaultTextureFiltering have no effect anymore.
+If several texture units share the same Sampler settings, you are encouraged to reference the same Sampler via [sampler_ref](#sampler_ref) for improved performance.
 
-You can also use a nested ’texture\_source’ section in order to use a special add-in as a source of texture data, See @ref External-Texture-Sources for details.
+You can also use nested section in order to use a special add-ins
+- @c texture_source as a source of texture data, see @ref External-Texture-Sources for details
+- @c rtshader_system for addtitional layer blending  options, see @ref rtss for details.
 
 <a name="Attribute-Descriptions-1"></a>
 
@@ -975,7 +981,7 @@ Setting the texture alias name is useful if this material is to be inherited by 
 
 Sets the name of the static texture image this layer will use.
 @par
-Format: texture &lt;texturename&gt; \[&lt;type&gt;\] \[unlimited | numMipMaps\] \[alpha\] \[&lt;PixelFormat&gt;\] \[gamma\]
+Format: texture &lt;texturename&gt; \[&lt;type&gt;\] \[unlimited | numMipMaps\] \[&lt;PixelFormat&gt;\] \[gamma\]
 @par
 Example: texture funkywall.jpg
 
@@ -1004,9 +1010,6 @@ Alternatively 1 cube texture can be used if supported by the texture format(DDS 
 
 @param numMipMaps
 specify the number of mipmaps to generate for this texture. The default is ’unlimited’ which means mips down to 1x1 size are generated. You can specify a fixed number (even 0) if you like instead. Note that if you use the same texture in many material scripts, the number of mipmaps generated will conform to the number specified in the first texture\_unit used to load the texture - so be consistent with your usage.
-
-@param alpha @copydoc Ogre::Texture::setTreatLuminanceAsAlpha
-Default: none
 
 @param PixelFormat
 specify the desired pixel format of the texture to create, which may be different to the pixel format of the texture file being loaded. Bear in mind that the final pixel format will be constrained by hardware capabilities so you may not get exactly what you ask for. 
@@ -1564,7 +1567,7 @@ This is the OpenGL standard assembler format for fragment programs. It’s rough
 
 </dd> <dt>fp20</dt> <dd>
 
-This is an nVidia-specific OpenGL fragment syntax which is a superset of ps 1.3. It allows you to use the ’nvparse’ format for basic fragment programs. It actually uses NV\_texture\_shader and NV\_register\_combiners to provide functionality equivalent to DirectX’s ps\_1\_1 under GL, but only for nVidia cards. However, since ATI cards adopted arbfp1 a little earlier than nVidia, it is mainly nVidia cards like the GeForce3 and GeForce4 that this will be useful for. You can find more information about nvparse at http://developer.nvidia.com/object/nvparse.html.
+This is an nVidia-specific OpenGL fragment syntax which is a superset of ps 1.3. It allows you to use the [nvparse format](https://www.nvidia.com/attach/6400) for basic fragment programs. It actually uses NV\_texture\_shader and NV\_register\_combiners to provide functionality equivalent to DirectX’s ps\_1\_1 under GL, but only for nVidia cards. However, since ATI cards adopted arbfp1 a little earlier than nVidia, it is mainly nVidia cards like the GeForce3 and GeForce4 that this will be useful for.
 
 </dd> <dt>fp30</dt> <dd>
 
@@ -1578,13 +1581,9 @@ Another nVidia-specific OpenGL fragment shader syntax. It is a superset of ps 3.
 
 An nVidia-specific OpenGL geometry shader syntax. <br> Supported cards: nVidia GeForce FX8 series<br>
 
-</dd> <dt>glsles</dt> <dd>
-
-OpenGL Shading Language for Embedded Systems. It is a variant of GLSL, streamlined for low power devices. Supported cards: PowerVR SGX series
-
 </dd> </dl>
 
-You can get a definitive list of the syntaxes supported by the current card by calling GpuProgramManager::getSingleton().getSupportedSyntax().
+You can get a definitive list of the syntaxes supported by the current card by calling `Ogre::GpuProgramManager::getSupportedSyntax()`.
 
 # Specifying Named Constants for Assembler Shaders {#Specifying-Named-Constants-for-Assembler-Shaders}
 
@@ -1599,28 +1598,13 @@ vertex_program myVertexProgram asm
 }
 ```
 
-In this case myVertexProgram.constants has been created by calling highLevelGpuProgram-&gt;getNamedConstants().save("myVertexProgram.constants"); sometime earlier as preparation, from the original high-level program. Once you’ve used this directive, you can use named parameters here even though the assembler program itself has no knowledge of them.
+In this case myVertexProgram.constants has been created by calling `Ogre::GpuNamedConstants::save("myVertexProgram.constants");` sometime earlier as preparation, from the original high-level program. Once you’ve used this directive, you can use named parameters here even though the assembler program itself has no knowledge of them.
 
 # Default Program Parameters {#Default-Program-Parameters}
 
 While defining a vertex, geometry or fragment program, you can also specify the default parameters to be used for materials which use it, unless they specifically override them. You do this by including a nested ’default\_params’ section, like so:
 
-```cpp
-vertex_program Ogre/CelShadingVP cg
-{
-    source Example_CelShading.cg
-    entry_point main_vp
-    profiles vs_1_1 arbvp1
-
-    default_params
-    {
-        param_named_auto lightPosition light_position_object_space 0
-        param_named_auto eyePosition camera_position_object_space
-        param_named_auto worldViewProj worldviewproj_matrix
-        param_named shininess float 10 
-    }
-}
-```
+@snippet Samples/Media/materials/scripts/Examples-Advanced.material celshading_vp
 
 The syntax of the parameter definition is exactly the same as when you define parameters when using programs, See @ref Program-Parameter-Specification. Defining default parameters allows you to avoid rebinding common parameters repeatedly (clearly in the above example, all but ’shininess’ are unlikely to change between uses of the program) which makes your material declarations shorter.
 
@@ -1675,7 +1659,9 @@ material BumpMap2 : BumpMap1
 
 # Texture Aliases {#Texture-Aliases}
 
-Texture aliases are useful for when only the textures used in texture units need to be specified for a cloned material. In the source material i.e. the original material to be cloned, each texture unit can be given a texture alias name. The cloned material in the script can then specify what textures should be used for each texture alias. Note that texture aliases are a more specific version of [Script Variables](#Script-Variables) which can be used to easily set other values.
+@deprecated texture aliases are a restricted version of @ref Script-Variables, which you should instead.
+
+Texture aliases are useful for when only the textures used in texture units need to be specified for a cloned material. In the source material i.e. the original material to be cloned, each texture unit can be given a texture alias name. The cloned material in the script can then specify what textures should be used for each texture alias.
 
 Using texture aliases within texture units:
 @par
@@ -1813,7 +1799,7 @@ material fxTest : TSNormalSpecMapping
 
 The textures in both techniques in the child material will automatically get replaced with the new ones we want to use.
 
-The same process can be done in code as long you set up the texture alias names so then there is no need to traverse technique/pass/TUS to change a texture. You just call myMaterialPtr-&gt;applyTextureAliases(myAliasTextureNameList) which will update all textures in all texture units that match the alias names in the map container reference you passed as a parameter.
+The same process can be done in code as long you set up the texture alias names so then there is no need to traverse technique/pass/TUS to change a texture. You just call @ref Ogre::Material::applyTextureAliases which will update all textures in all texture units that match the alias names in the map container reference you passed as a parameter.
 
 You don’t have to supply all the textures in the copied material.<br>
 

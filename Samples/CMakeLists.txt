@@ -14,7 +14,7 @@ if (OGRE_BUILD_SAMPLES)
   endif ()
   
   if (OGRE_BUILD_COMPONENT_OVERLAY)
-  	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreOverlay)
+    set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreOverlay)
   endif ()
   
   if (OGRE_BUILD_COMPONENT_TERRAIN)
@@ -39,20 +39,12 @@ if (OGRE_BUILD_SAMPLES)
   endif()
 
   ## Default Samples Plugin
-
-  # Find all samples headers, and copy them to a single include folder
-  # We do this instead of including every sample in the include_directories directive, 
-  # because this creates a list that is too long for the MSVC command line sometimes.
-  file (GLOB SAMPLES_HEADERS ${PROJECT_SOURCE_DIR}/Samples/*/include/*.h)
-  foreach(SAMPLE_HEADER_FULLPATH ${SAMPLES_HEADERS})
-	  get_filename_component(SAMPLE_HEADER_NAME ${SAMPLE_HEADER_FULLPATH} NAME)
-	  configure_file(${SAMPLE_HEADER_FULLPATH} ${PROJECT_BINARY_DIR}/Samples/include/${SAMPLE_HEADER_NAME} COPYONLY)
-  endforeach(SAMPLE_HEADER_FULLPATH)
-  include_directories(${PROJECT_BINARY_DIR}/Samples/include)
+  file (GLOB SAMPLES_HEADERS ${PROJECT_SOURCE_DIR}/Samples/*/include)
+  include_directories(${SAMPLES_HEADERS})
 
   file(GLOB SAMPLES_SOURCES ${PROJECT_SOURCE_DIR}/Samples/*/src/*.cpp)
 
-  set(BLACKLIST AtomicCounters Browser TerrainTessellation PCZTestApp)
+  set(BLACKLIST Browser TerrainTessellation PCZTestApp)
   foreach(FILTER_SAMPLE ${BLACKLIST})
     file(GLOB BLACKLIST_CPP ${PROJECT_SOURCE_DIR}/Samples/${FILTER_SAMPLE}/src/*.cpp)
     list(REMOVE_ITEM SAMPLES_SOURCES ${BLACKLIST_CPP})
@@ -63,6 +55,11 @@ if (OGRE_BUILD_SAMPLES)
               ${CMAKE_CURRENT_SOURCE_DIR}/Common/src/DefaultSamplesPlugin.cpp
               ${SAMPLES_SOURCES} ${SAMPLES_HEADERS})
   target_link_libraries(DefaultSamples OgreMain ${SAMPLE_DEPENDENCIES} OgreBites)
+
+  if(OGRE_BUILD_COMPONENT_OVERLAY_IMGUI)
+    target_compile_definitions(DefaultSamples PRIVATE -DHAVE_IMGUI)
+  endif()
+
   ogre_config_sample_lib(DefaultSamples)
 
   if (APPLE AND NOT APPLE_IOS)
@@ -96,11 +93,6 @@ if (OGRE_INSTALL_SAMPLES_SOURCE)
 	PATTERN "obj" EXCLUDE
 	PATTERN "scripts" EXCLUDE
   )
-  # install a new CMakeLists.txt file to allow building of samples
-  configure_file(${OGRE_TEMPLATES_DIR}/SDK_CMakeLists.txt.in ${CMAKE_CURRENT_BINARY_DIR}/../CMakeLists.txt @ONLY)
-  configure_file(${OGRE_TEMPLATES_DIR}/SDK_Samples_CMakeLists.txt.in ${CMAKE_CURRENT_BINARY_DIR}/CMakeLists.txt @ONLY)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/../CMakeLists.txt DESTINATION ${OGRE_SAMPLES_DIR}/../)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CMakeLists.txt DESTINATION ${OGRE_SAMPLES_DIR})
 endif ()
 
 # Install sample headers, some people rely on these
@@ -108,7 +100,7 @@ file(GLOB SAMPLE_COMMON_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/Common/include/*.h"
 install(FILES ${SAMPLE_COMMON_HEADERS}
 		DESTINATION include/OGRE)
 		
-if (MSVC)
+if (MSVC AND OGRE_BUILD_SAMPLES)
   find_package(Wix)
   if (Wix_FOUND)
     # Create WiX setup for demo build
@@ -124,7 +116,6 @@ if (MSVC)
 	set(OGRE_MEDIA_DIR_TMP ${OGRE_MEDIA_DIR_REL})
 	set(OGRE_MEDIA_DIR_REL "Media")
     configure_file(${OGRE_TEMPLATES_DIR}/resources.cfg.in ${CMAKE_CURRENT_BINARY_DIR}/resources.cfg @ONLY)
-    configure_file(${OGRE_TEMPLATES_DIR}/quakemap.cfg.in ${CMAKE_CURRENT_BINARY_DIR}/quakemap.cfg @ONLY)
 	# restore
 	set(OGRE_MEDIA_DIR_REL ${OGRE_MEDIA_DIR_TMP})
     add_custom_target(demo_installer 

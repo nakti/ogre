@@ -36,7 +36,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Material::Material(ResourceManager* creator, const String& name, ResourceHandle handle,
         const String& group, bool isManual, ManualResourceLoader* loader)
-        :Resource(creator, name, handle, group, isManual, loader),
+        :Resource(creator, name, handle, group, false, NULL),
          mReceiveShadows(true),
          mTransparencyCastsShadows(false),
          mCompilationRequired(true)
@@ -44,7 +44,6 @@ namespace Ogre {
         // Override isManual, not applicable for Material (we always want to call loadImpl)
         if(isManual)
         {
-            mIsManual = false;
             LogManager::getSingleton().logMessage("Material " + name + 
                 " was requested with isManual=true, but this is not applicable " 
                 "for materials; the flag has been reset to false");
@@ -75,18 +74,9 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Material& Material::operator=(const Material& rhs)
     {
-        mName = rhs.mName;
-        mGroup = rhs.mGroup;
-        mCreator = rhs.mCreator;
-        mIsManual = rhs.mIsManual;
-        mLoader = rhs.mLoader;
-        mHandle = rhs.mHandle;
-        mSize = rhs.mSize;
+        Resource::operator=(rhs);
         mReceiveShadows = rhs.mReceiveShadows;
         mTransparencyCastsShadows = rhs.mTransparencyCastsShadows;
-
-        mLoadingState.store(rhs.mLoadingState.load());
-        mIsBackgroundLoaded = rhs.mIsBackgroundLoaded;
 
         // Copy Techniques
         this->removeAllTechniques();
@@ -168,21 +158,15 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     size_t Material::calculateSize(void) const
     {
-        size_t memSize = 0;
+        size_t memSize = sizeof(*this) + Resource::calculateSize();
 
         // Tally up techniques
-        Techniques::const_iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
+        for (auto t : mTechniques)
         {
-            memSize += (*i)->calculateSize();
+            memSize += t->calculateSize();
         }
 
-        memSize += sizeof(bool) * 3;
         memSize += mUnsupportedReasons.size() * sizeof(char);
-        memSize += sizeof(LodStrategy);
-
-        memSize += Resource::calculateSize();
 
         return memSize;
     }
@@ -219,17 +203,12 @@ namespace Ogre {
         ResourceHandle savedHandle = mat->mHandle;
         String savedName = mat->mName;
         String savedGroup = mat->mGroup;
-        ManualResourceLoader* savedLoader = mat->mLoader;
-        bool savedManual = mat->mIsManual;
         // Assign values from this
         *mat = *this;
         // Correct the name & handle, they get copied too
         mat->mName = savedName;
         mat->mHandle = savedHandle;
         mat->mGroup = savedGroup;
-        mat->mIsManual = savedManual;
-        mat->mLoader = savedLoader;
-
     }
     //-----------------------------------------------------------------------
     void Material::applyDefaults(void)
@@ -242,15 +221,11 @@ namespace Ogre {
             String savedName = mName;
             String savedGroup = mGroup;
             ResourceHandle savedHandle = mHandle;
-            ManualResourceLoader *savedLoader = mLoader;
-            bool savedManual = mIsManual;
             *this = *defaults;
             // restore name & handle
             mName = savedName;
             mHandle = savedHandle;
             mGroup = savedGroup;
-            mLoader = savedLoader;
-            mIsManual = savedManual;
         }
         mCompilationRequired = true;
 
@@ -822,8 +797,10 @@ namespace Ogre {
 
         for (i = mTechniques.begin(); i != iend; ++i)
         {
+            OGRE_IGNORE_DEPRECATED_BEGIN
             if ((*i)->applyTextureAliases(aliasList, apply))
                 testResult = true;
+            OGRE_IGNORE_DEPRECATED_END
         }
 
         return testResult;

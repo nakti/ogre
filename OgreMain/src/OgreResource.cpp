@@ -42,6 +42,21 @@ namespace Ogre
     Resource::~Resource() 
     { 
     }
+    Resource& Resource::operator=(const Resource& rhs)
+    {
+        mName = rhs.mName;
+        mGroup = rhs.mGroup;
+        mCreator = rhs.mCreator;
+        mIsManual = rhs.mIsManual;
+        mLoader = rhs.mLoader;
+        mHandle = rhs.mHandle;
+        mSize = rhs.mSize;
+
+        mLoadingState.store(rhs.mLoadingState.load());
+        mIsBackgroundLoaded = rhs.mIsBackgroundLoaded;
+
+        return *this;
+    }
     //-----------------------------------------------------------------------
     void Resource::escalateLoading()
     {
@@ -273,17 +288,11 @@ namespace Ogre
     //---------------------------------------------------------------------
     size_t Resource::calculateSize(void) const
     {
-        size_t memSize = 0;
-        memSize += sizeof(ResourceManager);
-        memSize += sizeof(ManualResourceLoader);
-        memSize += sizeof(ResourceHandle);
+        size_t memSize = 0; // sizeof(*this) should be called by deriving classes
         memSize += mName.size() * sizeof(char);
         memSize += mGroup.size() * sizeof(char);
         memSize += mOrigin.size() * sizeof(char);
-        memSize += sizeof(size_t) * 2;
-        memSize += sizeof(bool) * 2;
-        memSize += sizeof(Listener) * mListenerList.size();
-        memSize += sizeof(AtomicScalar<LoadingState>);
+        memSize += sizeof(void*) * mListenerList.size();
 
         return memSize;
     }

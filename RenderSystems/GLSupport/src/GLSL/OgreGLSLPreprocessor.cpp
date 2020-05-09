@@ -193,62 +193,68 @@ namespace Ogre {
         return c;
     }
 
-
-    CPreprocessor::Token CPreprocessor::Macro::Expand (
-        int iNumArgs, CPreprocessor::Token *iArgs, Macro *iMacros)
+    CPreprocessor::Token CPreprocessor::Macro::Expand(const std::vector<Token>& iArgs,
+                                                      std::forward_list<Macro>& iMacros)
     {
         Expanding = true;
 
         CPreprocessor cpp;
-        cpp.MacroList = iMacros;
+        std::swap(cpp.MacroList, iMacros);
 
         // Define a new macro for every argument
-        int i;
-        for (i = 0; i < iNumArgs; i++)
+        size_t i;
+        for (i = 0; i < iArgs.size(); i++)
             cpp.Define (Args [i].String, Args [i].Length,
                         iArgs [i].String, iArgs [i].Length);
         // The rest arguments are empty
-        for (; i < NumArgs; i++)
+        for (; i < Args.size(); i++)
             cpp.Define (Args [i].String, Args [i].Length, "", 0);
 
-        // Now run the macro expansion through the supplimentary preprocessor
-        Token xt = cpp.Parse (Value);
+        Token xt;
+        // make sure that no one down the line sets Value.Allocated = 0
+        Token new_xt = Token(Token::TK_TEXT, Value.String, Value.Length);
+        bool first = true;
+        do {
+            xt = new_xt;
+            // Now run the macro expansion through the supplimentary preprocessor
+            new_xt = cpp.Parse (xt);
+
+            // Remove the extra macros we have defined, only needed once.
+            if (first) {
+                first = false;
+                for (int j = Args.size() - 1; j >= 0; j--)
+                    cpp.Undef (Args [j].String, Args [j].Length);
+            }
+            // Repeat until there is no more change between parses
+        } while (xt.String != new_xt.String);
 
         Expanding = false;
-
-        // Remove the extra macros we have defined
-        for (int j = NumArgs - 1; j >= 0; j--)
-            cpp.Undef (Args [j].String, Args [j].Length);
-
-        cpp.MacroList = NULL;
+        std::swap(cpp.MacroList, iMacros);
 
         return xt;
     }
 
     void CPreprocessor::Error(int iLine, const char *iError, const Token *iToken)
     {
-        char line [1000];
+        String msg;
         if (iToken)
-            snprintf (line, sizeof (line), "line %d: %s: `%.*s'\n",
-                      iLine, iError, int (iToken->Length), iToken->String);
+            msg = StringUtil::format("line %d: %s: `%.*s'\n", iLine, iError, int(iToken->Length), iToken->String);
         else
-            snprintf (line, sizeof (line), "line %d: %s\n", iLine, iError);
-        LogManager::getSingleton ().logMessage (line, LML_CRITICAL);
+            msg = StringUtil::format("line %d: %s\n", iLine, iError);
+        LogManager::getSingleton().logMessage(msg, LML_CRITICAL);
     }
 
-    CPreprocessor::CPreprocessor (const Token &iToken, int iLine) : MacroList (NULL)
+    CPreprocessor::CPreprocessor (const Token &iToken, int iLine)
     {
         Source = iToken.String;
         SourceEnd = iToken.String + iToken.Length;
         EnableOutput = 1;
+        EnableElif = 0;
         Line = iLine;
         BOL = true;
     }
 
-    CPreprocessor::~CPreprocessor ()
-    {
-        delete MacroList;
-    }
+    CPreprocessor::~CPreprocessor() {}
 
     CPreprocessor::Token CPreprocessor::GetToken (bool iExpand)
     {
@@ -385,9 +391,9 @@ namespace Ogre {
 
     CPreprocessor::Macro *CPreprocessor::IsDefined (const Token &iToken)
     {
-        for (Macro *cur = MacroList; cur; cur = cur->Next)
-            if (cur->Name == iToken)
-                return cur;
+        for (Macro& cur : MacroList)
+            if (cur.Name == iToken)
+                return &cur;
 
         return NULL;
     }
@@ -398,16 +404,14 @@ namespace Ogre {
         Macro *cur = IsDefined (iToken);
         if (cur && !cur->Expanding)
         {
-            Token *args = NULL;
-            int nargs = 0;
+            std::vector<Token> args;
             int old_line = Line;
 
-            if (cur->NumArgs != 0)
+            if (!cur->Args.empty())
             {
-                Token t = GetArguments (nargs, args, cur->ExpandFunc ? false : true, false);
+                Token t = GetArguments (args, cur->ExpandFunc ? false : true, false);
                 if (t.Type == Token::TK_ERROR)
                 {
-                    delete [] args;
                     return t;
                 }
 
@@ -419,24 +423,27 @@ namespace Ogre {
                     Source = t.String;
                     Line -= t.CountNL ();
                 }
+                // If a macro is defined with arguments but gets not "called" it should behave like normal text
+                if (args.size() == 0 && (t.Type != Token::TK_PUNCTUATION || t.String [0] != '('))
+                {
+                    return iToken;
+                }
             }
 
-            if (nargs > cur->NumArgs)
+            if (args.size() > cur->Args.size())
             {
                 char tmp [60];
-                snprintf (tmp, sizeof (tmp), "Macro `%.*s' passed %d arguments, but takes just %d",
+                snprintf (tmp, sizeof (tmp), "Macro `%.*s' passed %zu arguments, but takes just %zu",
                           int (cur->Name.Length), cur->Name.String,
-                          nargs, cur->NumArgs);
+                          args.size(), cur->Args.size());
                 Error (old_line, tmp);
                 return Token (Token::TK_ERROR);
             }
 
             Token t = cur->ExpandFunc ?
-                cur->ExpandFunc (this, nargs, args) :
-                cur->Expand (nargs, args, MacroList);
+                cur->ExpandFunc (this, args) :
+                cur->Expand (args, MacroList);
             t.AppendNL (Line - old_line);
-
-            delete [] args;
 
             return t;
         }
@@ -665,12 +672,12 @@ namespace Ogre {
         if (vt->Type == Token::TK_TEXT)
         {
             CPreprocessor cpp (iToken, iLine);
-            cpp.MacroList = MacroList;
+            std::swap(cpp.MacroList, MacroList);
 
             Token t;
             t = cpp.GetExpression (r, iLine);
 
-            cpp.MacroList = NULL;
+            std::swap(cpp.MacroList, MacroList);
 
             if (t.Type == Token::TK_ERROR)
                 return false;
@@ -828,15 +835,14 @@ namespace Ogre {
     }
 
 
-    CPreprocessor::Token CPreprocessor::GetArguments (int &oNumArgs, Token *&oArgs,
+    CPreprocessor::Token CPreprocessor::GetArguments (std::vector<Token>& oArgs,
                                                       bool iExpand, bool shouldAppendArg)
     {
         Token args [MAX_MACRO_ARGS];
         int nargs = 0;
 
         // Suppose we'll leave by the wrong path
-        oNumArgs = 0;
-        oArgs = NULL;
+        oArgs.clear();
 
         bool isFirstTokenParsed = false;
         bool isFirstTokenNotAnOpenBrace = false;
@@ -858,8 +864,7 @@ namespace Ogre {
 
         if( isFirstTokenNotAnOpenBrace )
         {
-            oNumArgs = 0;
-            oArgs = NULL;
+            oArgs.clear();
             return t;
         }
 
@@ -896,10 +901,7 @@ namespace Ogre {
         }
 
     Done:
-        oNumArgs = nargs;
-        oArgs = new Token [nargs];
-        for (int i = 0; i < nargs; i++)
-            oArgs [i] = args [i];
+        oArgs.insert(oArgs.begin(), args, args + nargs);
         return t;
     }
 
@@ -916,9 +918,9 @@ namespace Ogre {
             return false;
         }
 
-        Macro *m = new Macro (t);
-        m->Body = iBody;
-        t = cpp.GetArguments (m->NumArgs, m->Args, false, true);
+        Macro m(t);
+        m.Body = iBody;
+        t = cpp.GetArguments (m.Args, false, true);
         while (t.Type == Token::TK_WHITESPACE)
             t = cpp.GetToken (false);
 
@@ -931,7 +933,6 @@ namespace Ogre {
             break;
 
         case Token::TK_ERROR:
-            delete m;
             return false;
 
         default:
@@ -941,7 +942,7 @@ namespace Ogre {
             break;
         }
 
-        if( m->NumArgs > 0 )
+        if( !m.Args.empty() )
         {
             CPreprocessor cpp2;
 
@@ -949,10 +950,9 @@ namespace Ogre {
             //  #define mad( a__arg_, b__arg_, c__arg_ ) fma( a, b, c )
             //into:
             //  #define mad( a__arg_, b__arg_, c__arg_ ) fma( a__arg_, b__arg_, c__arg_ )
-            for( int i = 0; i < m->NumArgs; ++i )
+            for (const Token& arg : m.Args)
             {
-                cpp2.Define( m->Args[i].String, m->Args[i].Length - 6,
-                             m->Args[i].String, m->Args[i].Length );
+                cpp2.Define(arg.String, arg.Length - 6, arg.String, arg.Length);
             }
 
             // Now run the macro expansion through the supplimentary preprocessor
@@ -960,9 +960,8 @@ namespace Ogre {
             t = xt;
         }
 
-        m->Value = t;
-        m->Next = MacroList;
-        MacroList = m;
+        m.Value = t;
+        MacroList.push_front(std::move(m));
         return true;
     }
 
@@ -995,7 +994,7 @@ namespace Ogre {
         return true;
     }
 
-    bool CPreprocessor::HandleIfDef (Token &iBody, int iLine)
+    bool CPreprocessor::HandleIf(bool val, int iLine)
     {
         if (EnableOutput & (1 << 31))
         {
@@ -1003,6 +1002,18 @@ namespace Ogre {
             return false;
         }
 
+        EnableElif <<= 1;
+        EnableOutput <<= 1;
+        if (val)
+            EnableOutput |= 1;
+        else
+            EnableElif |= 1;
+
+        return true;
+    }
+
+    bool CPreprocessor::HandleIfDef (Token &iBody, int iLine)
+    {
         CPreprocessor cpp (iBody, iLine);
 
         Token t = cpp.GetToken (false);
@@ -1013,9 +1024,8 @@ namespace Ogre {
             return false;
         }
 
-        EnableOutput <<= 1;
-        if (IsDefined (t))
-            EnableOutput |= 1;
+        if (!HandleIf(IsDefined(t), iLine))
+            return false;
 
         do
         {
@@ -1031,9 +1041,9 @@ namespace Ogre {
     }
 
 
-    CPreprocessor::Token CPreprocessor::ExpandDefined (CPreprocessor *iParent, int iNumArgs, Token *iArgs)
+    CPreprocessor::Token CPreprocessor::ExpandDefined (CPreprocessor *iParent, const std::vector<Token>& iArgs)
     {
-        if (iNumArgs != 1)
+        if (iArgs.size() != 1)
         {
             iParent->Error (iParent->Line, "The defined() function takes exactly one argument");
             return Token (Token::TK_ERROR);
@@ -1043,34 +1053,26 @@ namespace Ogre {
         return Token (Token::TK_NUMBER, v, 1);
     }
 
+    bool CPreprocessor::GetValueDef(const Token &iToken, long &oValue, int iLine)
+    {
+        // Temporary add the defined() function to the macro list
+        MacroList.emplace_front(Token(Token::TK_KEYWORD, "defined", 7));
+        MacroList.front().ExpandFunc = ExpandDefined;
+        MacroList.front().Args.resize(1);
+
+        bool rc = GetValue (iToken, oValue, iLine);
+
+        // Restore the macro list
+        MacroList.pop_front();
+
+        return rc;
+    }
 
     bool CPreprocessor::HandleIf (Token &iBody, int iLine)
     {
-        Macro defined (Token (Token::TK_KEYWORD, "defined", 7));
-        defined.Next = MacroList;
-        defined.ExpandFunc = ExpandDefined;
-        defined.NumArgs = 1;
-
-        // Temporary add the defined() function to the macro list
-        MacroList = &defined;
-
         long val;
-        bool rc = GetValue (iBody, val, iLine);
-
-        // Restore the macro list
-        MacroList = defined.Next;
-        defined.Next = NULL;
-
-        if (!rc)
-            return false;
-
-        EnableOutput <<= 1;
-        if (val)
-            EnableOutput |= 1;
-
-        return true;
+        return GetValueDef(iBody, val, iLine) && HandleIf(val, iLine);
     }
-
 
     bool CPreprocessor::HandleElif (Token &iBody, int iLine)
     {
@@ -1080,26 +1082,15 @@ namespace Ogre {
             return false;
         }
 
-        Macro defined (Token (Token::TK_KEYWORD, "defined", 7));
-        defined.Next = MacroList;
-        defined.ExpandFunc = ExpandDefined;
-        defined.NumArgs = 1;
-
-        // Temporary add the defined() function to the macro list
-        MacroList = &defined;
-
         long val;
-        bool rc = GetValue (iBody, val, iLine);
-
-        // Restore the macro list
-        MacroList = defined.Next;
-        defined.Next = NULL;
-
-        if (!rc)
+        if (!GetValueDef(iBody, val, iLine))
             return false;
 
-        if (val)
+        if (val && (EnableElif & 1))
+        {
             EnableOutput |= 1;
+            EnableElif &= ~1;
+        }
         else
             EnableOutput &= ~1;
 
@@ -1116,7 +1107,8 @@ namespace Ogre {
         }
 
         // Negate the result of last #if
-        EnableOutput ^= 1;
+        if ((EnableElif & 1) || (EnableOutput & 1))
+            EnableOutput ^= 1;
 
         if (iBody.Length)
             Error (iLine, "Warning: Ignoring garbage after #else", &iBody);
@@ -1127,6 +1119,7 @@ namespace Ogre {
 
     bool CPreprocessor::HandleEndIf (Token &iBody, int iLine)
     {
+        EnableElif >>= 1;
         EnableOutput >>= 1;
         if (EnableOutput == 0)
         {
@@ -1216,7 +1209,10 @@ namespace Ogre {
         {
             rc = HandleIfDef (t, iLine);
             if (rc)
+            {
                 EnableOutput ^= 1;
+                EnableElif ^= 1;
+            }
         }
         else if (IS_DIRECTIVE ("if"))
             rc = HandleIf (t, iLine);
@@ -1250,39 +1246,33 @@ namespace Ogre {
     void CPreprocessor::Define (const char *iMacroName, size_t iMacroNameLen,
                                 const char *iMacroValue, size_t iMacroValueLen)
     {
-        Macro *m = new Macro (Token (Token::TK_KEYWORD, iMacroName, iMacroNameLen));
-        m->Value = Token (Token::TK_TEXT, iMacroValue, iMacroValueLen);
-        m->Next = MacroList;
-        MacroList = m;
+        MacroList.emplace_front(Token(Token::TK_KEYWORD, iMacroName, iMacroNameLen));
+        MacroList.front().Value = Token(Token::TK_TEXT, iMacroValue, iMacroValueLen);
     }
 
 
     void CPreprocessor::Define (const char *iMacroName, size_t iMacroNameLen,
                                 long iMacroValue)
     {
-        Macro *m = new Macro (Token (Token::TK_KEYWORD, iMacroName, iMacroNameLen));
-        m->Value.SetValue (iMacroValue);
-        m->Next = MacroList;
-        MacroList = m;
+        MacroList.emplace_front(Token(Token::TK_KEYWORD, iMacroName, iMacroNameLen));
+        MacroList.front().Value.SetValue(iMacroValue);
     }
 
 
     bool CPreprocessor::Undef (const char *iMacroName, size_t iMacroNameLen)
     {
-        Macro **cur = &MacroList;
         Token name (Token::TK_KEYWORD, iMacroName, iMacroNameLen);
-        while (*cur)
+
+        for (auto it = MacroList.before_begin();; ++it)
         {
-            if ((*cur)->Name == name)
+            auto itpp = std::next(it);
+            if(itpp == MacroList.end()) break;
+
+            if (itpp->Name == name)
             {
-                Macro *next = (*cur)->Next;
-                (*cur)->Next = NULL;
-                delete (*cur);
-                *cur = next;
+                MacroList.erase_after(it);
                 return true;
             }
-
-            cur = &(*cur)->Next;
         }
 
         return false;
@@ -1296,6 +1286,7 @@ namespace Ogre {
         Line = 1;
         BOL = true;
         EnableOutput = 1;
+        EnableElif = 0;
 
         // Accumulate output into this token
         Token output (Token::TK_TEXT);

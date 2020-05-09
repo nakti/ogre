@@ -63,6 +63,16 @@ namespace Ogre {
 
         void initConfigOptions();
         void refreshConfig();
+
+        typedef std::list<GLContext*> GLContextList;
+        /// List of background thread contexts
+        GLContextList mBackgroundContextList;
+        OGRE_MUTEX(mThreadInitMutex);
+
+        /** One time initialization for the RenderState of a context. Things that
+            only need to be set once, like the LightingModel can be defined here.
+        */
+        virtual void _oneTimeContextInitialization() = 0;
     public:
         struct VideoMode {
             uint32 width;
@@ -122,21 +132,12 @@ namespace Ogre {
             return VET_COLOUR_ABGR;
         }
 
-        void reinitialise(void)
-        {
-            this->shutdown();
-            this->_initialise();
-        }
-
-        void _convertProjectionMatrix(const Matrix4& matrix, Matrix4& dest, bool)
-        {
-            // no conversion request for OpenGL
-            dest = matrix;
-        }
+        void _convertProjectionMatrix(const Matrix4& matrix, Matrix4& dest, bool);
 
         /// Mimics D3D9RenderSystem::_getDepthStencilFormatFor, if no FBO RTT manager, outputs GL_NONE
-        void _getDepthStencilFormatFor(PixelFormat internalColourFormat, uint32* depthFormat,
-                                       uint32* stencilFormat);
+        virtual void _getDepthStencilFormatFor(PixelFormat internalColourFormat,
+                                               uint32* depthFormat,
+                                               uint32* stencilFormat);
 
         /** Create VAO on current context */
         virtual uint32 _createVao() { return 0; }
@@ -148,6 +149,11 @@ namespace Ogre {
         virtual void _destroyFbo(GLContext* context, uint32 fbo) {}
         /** Complete destruction of VAOs and FBOs deferred while creator context was not current */
         void _completeDeferredVaoFboDestruction();
+
+        void registerThread();
+        void unregisterThread();
+        void preExtraThreadsStarted();
+        void postExtraThreadsStarted();
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
         virtual void resetRenderer(RenderWindow* pRenderWnd) = 0;

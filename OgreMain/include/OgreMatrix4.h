@@ -95,7 +95,7 @@ namespace Ogre
         }
 
         template<typename U>
-        explicit TransformBase(const TransformBase<rows, U>& o) : TransformBase(o.m[0]) {}
+        explicit TransformBase(const TransformBase<rows, U>& o) : TransformBase(o[0]) {}
 
         T* operator[](size_t iRow)
         {
@@ -113,9 +113,9 @@ namespace Ogre
         void setTrans( const Vector<3, T>& v )
         {
             assert(rows > 2);
-            m[0][3] = v.x;
-            m[1][3] = v.y;
-            m[2][3] = v.z;
+            m[0][3] = v[0];
+            m[1][3] = v[1];
+            m[2][3] = v[2];
         }
         /// Extracts the translation transformation part of the matrix.
         Vector<3, T> getTrans() const
@@ -127,9 +127,9 @@ namespace Ogre
         void setScale( const Vector<3, T>& v )
         {
             assert(rows > 2);
-            m[0][0] = v.x;
-            m[1][1] = v.y;
-            m[2][2] = v.z;
+            m[0][0] = v[0];
+            m[1][1] = v[1];
+            m[2][2] = v[2];
         }
 
         /** Function for writing to a stream.
@@ -156,6 +156,10 @@ namespace Ogre
 
     struct _OgreExport TransformBaseReal : public TransformBase<4, Real>
     {
+        /// Do <b>NOT</b> initialize for efficiency.
+        TransformBaseReal() {}
+        template<typename U>
+        explicit TransformBaseReal(const U* ptr) : TransformBase(ptr) {}
         /** Builds a translation matrix
         */
         void makeTrans( const Vector3& v )
@@ -230,7 +234,9 @@ namespace Ogre
             m[2][0] = m20; m[2][1] = m21; m[2][2] = m22; m[2][3] = m23;
             m[3][0] = m30; m[3][1] = m31; m[3][2] = m32; m[3][3] = m33;
         }
-        
+
+        template<typename U>
+        explicit Matrix4(const U* ptr) : TransformBaseReal(ptr) {}
         explicit Matrix4 (const Real* arr)
         {
             memcpy(m,arr,16*sizeof(Real));
@@ -319,6 +325,15 @@ namespace Ogre
         Affine3(const Vector3& position, const Quaternion& orientation, const Vector3& scale = Vector3::UNIT_SCALE)
         {
             makeTransform(position, scale, orientation);
+        }
+
+        template<typename U>
+        explicit Affine3(const U* ptr)
+        {
+            for (int i = 0; i < 3; i++)
+                for (int j = 0; j < 4; j++)
+                    m[i][j] = Real(ptr[i*4 + j]);
+            m[3][0] = 0, m[3][1] = 0, m[3][2] = 0, m[3][3] = 1;
         }
 
         explicit Affine3(const Real* arr)

@@ -32,10 +32,17 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Light::Light()
         : mLightType(LT_POINT),
+#ifdef OGRE_NODELESS_POSITIONING
           mPosition(Vector3::ZERO),
+          mDirection(Vector3::NEGATIVE_UNIT_Z),
+          mDerivedPosition(Vector3::ZERO),
+          mDerivedDirection(Vector3::NEGATIVE_UNIT_Z),
+          mDerivedCamRelativePosition(Vector3::ZERO),
+          mDerivedCamRelativeDirty(false),
+          mDerivedTransformDirty(false),
+#endif
           mDiffuse(ColourValue::White),
           mSpecular(ColourValue::Black),
-          mDirection(Vector3::NEGATIVE_UNIT_Z),
           mSpotOuter(Degree(40.0f)),
           mSpotInner(Degree(30.0f)),
           mSpotFalloff(1.0f),
@@ -43,18 +50,12 @@ namespace Ogre {
           mAttenuation(100000.f, 1.f, 0.f, 0.f),
           mPowerScale(1.0f),
           mIndexInFrame(0),
-          mOwnShadowFarDist(false),
           mShadowFarDist(0),
           mShadowFarDistSquared(0),
           mShadowNearClipDist(-1),
           mShadowFarClipDist(-1),
-          mDerivedPosition(Vector3::ZERO),
-          mDerivedDirection(Vector3::NEGATIVE_UNIT_Z),
-          mDerivedCamRelativePosition(Vector3::ZERO),
-          mDerivedCamRelativeDirty(false),
           mCameraToBeRelativeTo(0),
-          mDerivedTransformDirty(false),
-          mCustomShadowCameraSetup()
+          mOwnShadowFarDist(false)
     {
         //mMinPixelSize should always be zero for lights otherwise lights will disapear
         mMinPixelSize = 0;
@@ -62,10 +63,16 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Light::Light(const String& name) : MovableObject(name),
         mLightType(LT_POINT),
+#ifdef OGRE_NODELESS_POSITIONING
         mPosition(Vector3::ZERO),
+        mDirection(Vector3::NEGATIVE_UNIT_Z),
+        mDerivedPosition(Vector3::ZERO),
+        mDerivedDirection(Vector3::NEGATIVE_UNIT_Z),
+        mDerivedCamRelativeDirty(false),
+        mDerivedTransformDirty(false),
+#endif
         mDiffuse(ColourValue::White),
         mSpecular(ColourValue::Black),
-        mDirection(Vector3::NEGATIVE_UNIT_Z),
         mSpotOuter(Degree(40.0f)),
         mSpotInner(Degree(30.0f)),
         mSpotFalloff(1.0f),
@@ -73,17 +80,12 @@ namespace Ogre {
         mAttenuation(100000.f, 1.f, 0.f, 0.f),
         mPowerScale(1.0f),
         mIndexInFrame(0),
-        mOwnShadowFarDist(false),
         mShadowFarDist(0),
         mShadowFarDistSquared(0),
         mShadowNearClipDist(-1),
         mShadowFarClipDist(-1),
-        mDerivedPosition(Vector3::ZERO),
-        mDerivedDirection(Vector3::NEGATIVE_UNIT_Z),
-        mDerivedCamRelativeDirty(false),
         mCameraToBeRelativeTo(0),
-        mDerivedTransformDirty(false),
-        mCustomShadowCameraSetup()
+        mOwnShadowFarDist(false)
     {
         //mMinPixelSize should always be zero for lights otherwise lights will disapear
         mMinPixelSize = 0;
@@ -102,6 +104,7 @@ namespace Ogre {
     {
         return mLightType;
     }
+#ifdef OGRE_NODELESS_POSITIONING
     //-----------------------------------------------------------------------
     void Light::setPosition(Real x, Real y, Real z)
     {
@@ -140,6 +143,7 @@ namespace Ogre {
     {
         return mDirection;
     }
+#endif
     //-----------------------------------------------------------------------
     void Light::setSpotlightRange(const Radian& innerAngle, const Radian& outerAngle, Real falloff)
     {
@@ -221,6 +225,7 @@ namespace Ogre {
     {
         return mPowerScale;
     }
+#ifdef OGRE_NODELESS_POSITIONING
     //-----------------------------------------------------------------------
     void Light::update(void) const
     {
@@ -262,6 +267,7 @@ namespace Ogre {
 
         MovableObject::_notifyMoved();
     }
+#endif
     //-----------------------------------------------------------------------
     const AxisAlignedBox& Light::getBoundingBox(void) const
     {
@@ -285,6 +291,7 @@ namespace Ogre {
     {
         return LightFactory::FACTORY_TYPE_NAME;
     }
+#ifdef OGRE_NODELESS_POSITIONING
     //-----------------------------------------------------------------------
     const Vector3& Light::getDerivedPosition(bool cameraRelative) const
     {
@@ -304,6 +311,7 @@ namespace Ogre {
         update();
         return mDerivedDirection;
     }
+#endif
     //-----------------------------------------------------------------------
     Vector4 Light::getAs4DVector(bool cameraRelativeIfSet) const
     {
@@ -518,7 +526,10 @@ namespace Ogre {
     {
         if (mLightType == LT_DIRECTIONAL)
         {
-            tempSquareDist = 0;
+            // make sure directional lights are always in front
+            // even of point lights at worldPos
+            // tempSquareDist is just a tag for sorting, and nobody will take the sqrt
+            tempSquareDist = -1;
         }
         else
         {
@@ -744,7 +755,9 @@ namespace Ogre {
     void Light::_setCameraRelative(Camera* cam)
     {
         mCameraToBeRelativeTo = cam;
+#ifdef OGRE_NODELESS_POSITONING
         mDerivedCamRelativeDirty = true;
+#endif
     }
     //---------------------------------------------------------------------
     Real Light::_deriveShadowNearClipDistance(const Camera* maincam) const
@@ -804,6 +817,10 @@ namespace Ogre {
         //directional light always intersects (check only spotlight and point)
         if (mLightType != LT_DIRECTIONAL)
         {
+#ifndef OGRE_NODELESS_POSITIONING
+            const auto& mDerivedDirection = getDerivedDirection();
+            const auto& mDerivedPosition = mParentNode->_getDerivedPosition();
+#endif
             //Check that the sphere is within the sphere of the light
             isIntersect = container.intersects(Sphere(mDerivedPosition, mAttenuation[0]));
             //If this is a spotlight, check that the sphere is within the cone of the spot light
@@ -832,6 +849,10 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     bool Light::isInLightRange(const Ogre::AxisAlignedBox& container) const
     {
+#ifndef OGRE_NODELESS_POSITIONING
+        const auto& mDerivedDirection = getDerivedDirection();
+        const auto& mDerivedPosition = mParentNode->_getDerivedPosition();
+#endif
         bool isIntersect = true;
         //Check the 2 simple / obvious situations. Light is directional or light source is inside the container
         if ((mLightType != LT_DIRECTIONAL) && (container.intersects(mDerivedPosition) == false))

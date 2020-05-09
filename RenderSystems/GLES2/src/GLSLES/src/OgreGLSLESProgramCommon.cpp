@@ -37,34 +37,19 @@
 namespace Ogre {
     
     //-----------------------------------------------------------------------
-    GLSLESProgramCommon::GLSLESProgramCommon(GLSLESProgram* vertexProgram, GLSLESProgram* fragmentProgram)
-    : GLSLProgramCommon(vertexProgram)
-    , mFragmentProgram(fragmentProgram)
+    GLSLESProgramCommon::GLSLESProgramCommon(const GLShaderList& shaders)
+    : GLSLProgramCommon(shaders)
     {
-    }
-
-    //-----------------------------------------------------------------------
-    Ogre::String GLSLESProgramCommon::getCombinedName()
-    {
-        String name;
-        if (getVertexProgram())
-        {
-            name += "Vertex Program:" ;
-            name += getVertexProgram()->getName();
-        }
-        if (mFragmentProgram)
-        {
-            name += " Fragment Program:" ;
-            name += mFragmentProgram->getName();
-        }
-        name += "\n";
-
-        return name;
     }
 
     void GLSLESProgramCommon::bindFixedAttributes(GLuint program)
     {
         GLint maxAttribs = Root::getSingleton().getRenderSystem()->getCapabilities()->getNumVertexAttributes();
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+        // must query active attributes on OSX to avoid warning spam
+        OGRE_CHECK_GL_ERROR(glLinkProgram( program ));
+#endif
 
         size_t numAttribs = sizeof(msCustomAttributes) / sizeof(CustomAttribute);
         for (size_t i = 0; i < numAttribs; ++i)
@@ -72,7 +57,9 @@ namespace Ogre {
             const CustomAttribute& a = msCustomAttributes[i];
             if (a.attrib < maxAttribs)
             {
-
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+                if(glGetAttribLocation(program, a.name) == -1) continue;
+#endif
                 OGRE_CHECK_GL_ERROR(glBindAttribLocation(program, a.attrib, a.name));
             }
         }
@@ -105,7 +92,7 @@ namespace Ogre {
         // load binary
         OGRE_CHECK_GL_ERROR(glProgramBinaryOES(programHandle,
                            binaryFormat,
-                           cacheMicrocode->getPtr(),
+                           cacheMicrocode->getCurrentPtr(),
                            binaryLength));
 
         GLint success = 0;
@@ -143,8 +130,10 @@ namespace Ogre {
     {
         mLinked = false;
         mUniformRefsBuilt = false;
-        getVertexProgram()->getUniformCache()->clearCache();
-        mFragmentProgram->getUniformCache()->clearCache();
+        for(auto s : mShaders)
+        {
+            if(s) s->getUniformCache()->clearCache();
+        }
     }
 
     void GLSLESProgramCommon::notifyOnContextReset()

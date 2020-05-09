@@ -29,6 +29,7 @@ THE SOFTWARE.
 #define __Common_H__
 // Common stuff
 
+#include "OgreVector.h"
 #include "OgreHeaderPrefix.h"
 #include "OgreMurmurHash3.h"
 
@@ -674,6 +675,7 @@ namespace Ogre {
           {
               return left == rhs.left && right == rhs.right && top == rhs.top && bottom == rhs.bottom;
           }
+          bool operator!=(const TRect& rhs) const { return !(*this == rhs); }
         };
         template<typename T>
         std::ostream& operator<<(std::ostream& o, const TRect<T>& r)
@@ -745,7 +747,13 @@ namespace Ogre {
             {
                 assert(right >= left && bottom >= top && back >= front);
             }
-            
+
+            /// @overload
+            explicit Box(const Vector3i& size)
+                : left(0), top(0), right(size[0]), bottom(size[1]), front(0), back(size[2])
+            {
+            }
+
             /// Return true if the other box is a part of this one
             bool contains(const Box &def) const
             {
@@ -759,6 +767,11 @@ namespace Ogre {
             uint32 getHeight() const { return bottom-top; }
             /// Get the depth of this box
             uint32 getDepth() const { return back-front; }
+
+            /// origin (top, left, front) of the box
+            Vector3i getOrigin() const { return Vector3i(left, top, front); }
+            /// size (width, height, depth) of the box
+            Vector3i getSize() const { return Vector3i(getWidth(), getHeight(), getDepth()); }
         };
 
     

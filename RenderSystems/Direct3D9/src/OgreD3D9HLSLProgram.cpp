@@ -35,7 +35,6 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     D3D9HLSLProgram::CmdEntryPoint D3D9HLSLProgram::msCmdEntryPoint;
     D3D9HLSLProgram::CmdTarget D3D9HLSLProgram::msCmdTarget;
-    D3D9HLSLProgram::CmdPreprocessorDefines D3D9HLSLProgram::msCmdPreprocessorDefines;
     D3D9HLSLProgram::CmdColumnMajorMatrices D3D9HLSLProgram::msCmdColumnMajorMatrices;
     D3D9HLSLProgram::CmdOptimisation D3D9HLSLProgram::msCmdOptimisation;
     D3D9HLSLProgram::CmdMicrocode D3D9HLSLProgram::msCmdMicrocode;
@@ -85,9 +84,10 @@ namespace Ogre {
     };
 
     //-----------------------------------------------------------------------
-    //-----------------------------------------------------------------------
-    void D3D9HLSLProgram::loadFromSource(void)
+    void D3D9HLSLProgram::prepareImpl()
     {
+        HighLevelGpuProgram::prepareImpl();
+
         uint32 hash = _getHash();
         if ( GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(hash) )
         {
@@ -231,8 +231,7 @@ namespace Ogre {
                 errors->Release();
             }
 
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, message + "\n" + mSource,
-                "D3D9HLSLProgram::loadFromSource");
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, message + "\n" + mSource);
         }
         else
         {
@@ -245,9 +244,8 @@ namespace Ogre {
 
             if (FAILED(hr))
             {
-                OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, 
-                    "Cannot retrieve constant descriptions from HLSL program.", 
-                    "D3D9HLSLProgram::buildParameterNameMap");
+                OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,
+                            "Cannot retrieve constant descriptions from HLSL program");
             }
             // Iterate over the constants
             for (unsigned int i = 0; i < desc.Constants; ++i)
@@ -339,7 +337,6 @@ namespace Ogre {
         GpuConstantDefinitionMap::const_iterator iterE = mParametersMap.end();
         for (; iter != iterE ; ++iter)
         {
-            const String & paramName = iter->first;
             GpuConstantDefinition def = iter->second;
 
             mConstantDefs->map.emplace(iter->first, iter->second);
@@ -359,9 +356,6 @@ namespace Ogre {
                         GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL));
                 mIntLogicalToPhysical->bufferSize += def.arraySize * def.elementSize;
             }
-
-            // Deal with array indexing
-            mConstantDefs->generateConstantDefinitionArrayEntries(paramName, def);
         }
         
     }
@@ -583,6 +577,7 @@ namespace Ogre {
         ResourceHandle handle, const String& group, bool isManual, 
         ManualResourceLoader* loader)
         : HighLevelGpuProgram(creator, name, handle, group, isManual, loader)
+        , mEntryPoint("main")
         , mColumnMajorMatrices(true)
         , mBackwardsCompatibility(false)
         , mMicroCode(NULL)
@@ -600,9 +595,6 @@ namespace Ogre {
             dict->addParameter(ParameterDef("target", 
                 "Name of the assembler target to compile down to.",
                 PT_STRING),&msCmdTarget);
-            dict->addParameter(ParameterDef("preprocessor_defines", 
-                "Preprocessor defines use to compile the program.",
-                PT_STRING),&msCmdPreprocessorDefines);
             dict->addParameter(ParameterDef("column_major_matrices", 
                 "Whether matrix packing in column-major order.",
                 PT_BOOL),&msCmdColumnMajorMatrices);
@@ -657,24 +649,20 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void D3D9HLSLProgram::setTarget(const String& target)
     {
-        mTarget = "";
         std::vector<String> profiles = StringUtil::split(target, " ");
 
+        // find first supported format
         for(unsigned int i = 0 ; i < profiles.size() ; i++)
         {
             String & currentProfile = profiles[i];
             if(GpuProgramManager::getSingleton().isSyntaxSupported(currentProfile))
             {
                 mTarget = currentProfile;
-                break;
+                return;
             }
         }
 
-        if(mTarget == "")
-        {
-            LogManager::getSingleton().logMessage(
-                "Invalid target for D3D9 shader '" + mName + "' - '" + target + "'");
-        }
+        mTarget = profiles.front();
     }
 
     //-----------------------------------------------------------------------
@@ -702,15 +690,6 @@ namespace Ogre {
     void D3D9HLSLProgram::CmdTarget::doSet(void *target, const String& val)
     {
         static_cast<D3D9HLSLProgram*>(target)->setTarget(val);
-    }
-    //-----------------------------------------------------------------------
-    String D3D9HLSLProgram::CmdPreprocessorDefines::doGet(const void *target) const
-    {
-        return static_cast<const D3D9HLSLProgram*>(target)->getPreprocessorDefines();
-    }
-    void D3D9HLSLProgram::CmdPreprocessorDefines::doSet(void *target, const String& val)
-    {
-        static_cast<D3D9HLSLProgram*>(target)->setPreprocessorDefines(val);
     }
     //-----------------------------------------------------------------------
     String D3D9HLSLProgram::CmdColumnMajorMatrices::doGet(const void *target) const

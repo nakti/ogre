@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include "OgreRenderTarget.h"
 #include "OgreRenderTexture.h"
 #include "OgreRectangle2D.h"
+#include "OgreDepthBuffer.h"
 
 namespace Ogre {
 CompositorInstance::CompositorInstance(CompositionTechnique *technique,
@@ -701,14 +702,12 @@ void CompositorInstance::createResources(bool forResizeOnly)
             
             if(width == 0)
             {
-                width = static_cast<size_t>(
-                                            static_cast<float>(mChain->getViewport()->getActualWidth()) * def->widthFactor);
+                width = static_cast<float>(mChain->getViewport()->getActualWidth()) * def->widthFactor;
                 width = width == 0 ? 1 : width;
             }
             if(height == 0)
             {
-                height = static_cast<size_t>(
-                                             static_cast<float>(mChain->getViewport()->getActualHeight()) * def->heightFactor);
+                height = static_cast<float>(mChain->getViewport()->getActualHeight()) * def->heightFactor;
                 height = height == 0 ? 1 : height;
             }
             
@@ -798,8 +797,8 @@ void CompositorInstance::createResources(bool forResizeOnly)
                 mLocalTextures[def->name] = tex;
             }
         }
-        
-        if(!PixelUtil::isDepth(rendTarget->suggestPixelFormat()))
+
+        if(rendTarget->getDepthBufferPool() != DepthBuffer::POOL_NO_DEPTH)
         {
             //Set DepthBuffer pool for sharing
             rendTarget->setDepthBufferPool( def->depthBufferId );

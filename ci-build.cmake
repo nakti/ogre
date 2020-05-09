@@ -15,6 +15,7 @@ set(RENDERSYSTEMS
 if(DEFINED ENV{IOS})
     set(GENERATOR -G Xcode)
     set(RENDERSYSTEMS
+        -DOGRE_BUILD_RENDERSYSTEM_METAL=TRUE
         -DOGRE_BUILD_RENDERSYSTEM_GLES2=TRUE
         -DOGRE_CONFIG_ENABLE_GLES3_SUPPORT=TRUE)
     set(CROSS
@@ -28,22 +29,17 @@ if(DEFINED ENV{IOS})
 elseif("$ENV{TRAVIS_OS_NAME}" STREQUAL "osx")
     set(GENERATOR -G Xcode)
     set(RENDERSYSTEMS
+        -DOGRE_BUILD_RENDERSYSTEM_METAL=TRUE
         -DOGRE_BUILD_RENDERSYSTEM_GL=FALSE
         -DOGRE_BUILD_RENDERSYSTEM_GL3PLUS=TRUE)
 
     set(OTHER
-        ${OTHER}
         -DOGRE_DEPENDENCIES_DIR=${CMAKE_CURRENT_SOURCE_DIR}/ogredeps
         ${CROSS})
 endif()
 
 if(DEFINED ENV{APPVEYOR})
     set(CMAKE_BUILD_TYPE Release)
-    if("$ENV{APPVEYOR_BUILD_WORKER_IMAGE}" STREQUAL "Visual Studio 2017")
-        set(GENERATOR -G "Visual Studio 15")
-    else()
-        set(GENERATOR -G "Visual Studio 12")
-    endif()
     set(RENDERSYSTEMS
         -DOGRE_BUILD_RENDERSYSTEM_D3D9=TRUE
         -DOGRE_BUILD_RENDERSYSTEM_GL=TRUE
@@ -57,11 +53,21 @@ if(DEFINED ENV{APPVEYOR})
         "-DPYTHON_LIBRARY=C:\\Python37-x64\\libs\\python37.lib"
         -DOGRE_DEPENDENCIES_DIR=${CMAKE_CURRENT_SOURCE_DIR}/ogredeps)
 
+    if("$ENV{APPVEYOR_BUILD_WORKER_IMAGE}" STREQUAL "Visual Studio 2017")
+        set(GENERATOR -G "Visual Studio 15")
+        set(OTHER ${OTHER}
+            -DCMAKE_PREFIX_PATH="C:\\Qt\\5.12\\msvc2017_64"
+            -DQt5_DIR="C:\\Qt\\5.12\\msvc2017_64\\lib\\cmake\\Qt5")
+    else()
+        set(GENERATOR -G "Visual Studio 12")
+    endif()
+
     set(BUILD_DEPS TRUE)
     set(SWIG_EXECUTABLE "C:\\ProgramData\\chocolatey\\bin\\swig.exe")
 endif()
 
 if(DEFINED ENV{ANDROID})
+    set(CMAKE_BUILD_TYPE RelWithDebInfo)
     set(CROSS
         -DANDROID_PLATFORM=android-16
         -DANDROID_NDK=${CMAKE_CURRENT_SOURCE_DIR}/android-ndk-r17
@@ -80,6 +86,12 @@ if(DEFINED ENV{ANDROID})
         -DOGRE_DEPENDENCIES_DIR=${CMAKE_CURRENT_SOURCE_DIR}/ogredeps)
     set(BUILD_DEPS TRUE)
     
+    set(BINTRAY_VERSION "$ENV{TRAVIS_TAG}")
+    if("${BINTRAY_VERSION}" STREQUAL "")
+        set(BINTRAY_VERSION "master1")
+    endif()
+    configure_file(Other/bintray.json.in Other/bintray.json @ONLY)
+
     if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/android-ndk-r17)
         message(STATUS "Downloading Android NDK")
         file(DOWNLOAD
@@ -95,6 +107,7 @@ execute_process(COMMAND ${CMAKE_COMMAND}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DOGRE_BUILD_TESTS=ON
     -DOGRE_RESOURCEMANAGER_STRICT=2
+    -DOGRE_NODELESS_POSITIONING=OFF
     -DOGRE_BUILD_DEPENDENCIES=${BUILD_DEPS}
     -DSWIG_EXECUTABLE=${SWIG_EXECUTABLE}
     ${RENDERSYSTEMS}

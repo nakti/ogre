@@ -50,7 +50,7 @@ namespace Ogre {
                                                GLint face, GLint level, uint32 width, uint32 height,
                                                uint32 depth)
         : GL3PlusHardwarePixelBuffer(width, height, depth, parent->getFormat(), (Usage)parent->getUsage()),
-          mTarget(parent->getGL3PlusTextureTarget()), mTextureID(parent->getGLID()), mFace(face), mLevel(level), mSliceTRT(0)
+          mTarget(parent->getGL3PlusTextureTarget()), mTextureID(parent->getGLID()), mLevel(level), mSliceTRT(0)
     {
         // Get face identifier
         mFaceTarget = mTarget;
@@ -223,6 +223,10 @@ namespace Ogre {
                     case GL_DEPTH_COMPONENT32:
                         type = GL_UNSIGNED_INT;
                         break;
+
+                    case GL_DEPTH_COMPONENT32F:
+                        type = GL_FLOAT;
+                        break;
                 }
             }
 
@@ -277,14 +281,12 @@ namespace Ogre {
 
     void GL3PlusTextureBuffer::download(const PixelBox &data)
     {
-        if (data.getWidth() != getWidth() ||
-            data.getHeight() != getHeight() ||
-            data.getDepth() != getDepth())
+        if (data.getSize() != getSize())
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "only download of entire buffer is supported by GL",
                         "GL3PlusTextureBuffer::download");
 
         // Download data to PBO
-        GL3PlusHardwareBuffer buffer(GL_PIXEL_PACK_BUFFER, mSizeInBytes, mUsage);
+        GL3PlusHardwareBuffer buffer(GL_PIXEL_PACK_BUFFER, data.getConsecutiveSize(), HBU_DISCARDABLE);
 
         //        std::stringstream str;
         //        str << "GL3PlusHardwarePixelBuffer::download: " << mTextureID
@@ -325,7 +327,7 @@ namespace Ogre {
 
         // Copy to destination buffer
         if(data.isConsecutive())
-            buffer.readData(0, mSizeInBytes, data.getTopLeftFrontPixelPtr());
+            buffer.readData(0, data.getConsecutiveSize(), data.getTopLeftFrontPixelPtr());
         else
         {
             size_t srcOffset = 0, elemSizeInBytes = PixelUtil::getNumElemBytes(data.format);
@@ -373,15 +375,7 @@ namespace Ogre {
     {
         GL3PlusTextureBuffer *srct = static_cast<GL3PlusTextureBuffer *>(src.get());
         // Check for FBO support first
-        // Destination texture must be 1D, 2D, 3D, or Cube
-        // Source texture must be 1D, 2D or 3D
-
-        // This does not seem to work for RTTs after the first update
-        // I have no idea why! For the moment, disable
-        if ((src->getUsage() & TU_RENDERTARGET) == 0 &&
-            (srct->mTarget == GL_TEXTURE_1D || srct->mTarget == GL_TEXTURE_2D
-             || srct->mTarget == GL_TEXTURE_RECTANGLE || srct->mTarget == GL_TEXTURE_3D)
-            && mTarget != GL_TEXTURE_2D_ARRAY)
+        if (GLRTTManager::getSingleton().checkFormat(mFormat))
         {
             blitFromTexture(srct, srcBox, dstBox);
         }
@@ -391,27 +385,15 @@ namespace Ogre {
         }
     }
 
-
-    // Very fast texture-to-texture blitter and hardware bi/trilinear scaling implementation using FBO
-    // Destination texture must be 1D, 2D, 3D, or Cube
-    // Source texture must be 1D, 2D or 3D
-    // Supports compressed formats as both source and destination format, it will use the hardware DXT compressor
-    // if available.
-    // @author W.J. van der Laan
     void GL3PlusTextureBuffer::blitFromTexture(GL3PlusTextureBuffer *src, const Box &srcBox, const Box &dstBox)
     {
         //        std::cerr << "GL3PlusTextureBuffer::blitFromTexture " <<
         //        src->mTextureID << ":" << srcBox.left << "," << srcBox.top << "," << srcBox.right << "," << srcBox.bottom << " " <<
         //        mTextureID << ":" << dstBox.left << "," << dstBox.top << "," << dstBox.right << "," << dstBox.bottom << std::endl;
-        // Store reference to FBO manager
-        GL3PlusFBOManager *fboMan = static_cast<GL3PlusFBOManager *>(GL3PlusRTTManager::getSingletonPtr());
-
         GLenum filtering = GL_LINEAR;
 
         // Set filtering modes depending on the dimensions and source
-        if (srcBox.getWidth()==dstBox.getWidth() &&
-            srcBox.getHeight()==dstBox.getHeight() &&
-            srcBox.getDepth()==dstBox.getDepth())
+        if (srcBox.getSize()==dstBox.getSize())
         {
             // Dimensions match -- use nearest filtering (fastest and pixel correct)
             filtering = GL_NEAREST;
@@ -421,76 +403,40 @@ namespace Ogre {
         GLint oldfb;
         OGRE_CHECK_GL_ERROR(glGetIntegerv(GL_FRAMEBUFFER_BINDING, &oldfb));
 
-        // Set up temporary FBO
+        // Set up temporary FBOs
         GLuint tempFBO[2] = { 0, 0 };
-        OGRE_CHECK_GL_ERROR(glGenFramebuffers(1, &tempFBO[0]));
-        OGRE_CHECK_GL_ERROR(glGenFramebuffers(1, &tempFBO[1]));
+        OGRE_CHECK_GL_ERROR(glGenFramebuffers(2, tempFBO));
         mRenderSystem->_getStateCacheManager()->bindGLFrameBuffer( GL_DRAW_FRAMEBUFFER, tempFBO[0] );
         mRenderSystem->_getStateCacheManager()->bindGLFrameBuffer( GL_READ_FRAMEBUFFER, tempFBO[1] );
-
-        TexturePtr tempTex;
-        if (!fboMan->checkFormat(mFormat))
-        {
-            // If target format not directly supported, create intermediate texture
-            tempTex = TextureManager::getSingleton().createManual(
-                "GLBlitFromTextureTMP", ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME, TEX_TYPE_2D,
-                dstBox.getWidth(), dstBox.getHeight(), dstBox.getDepth(), 0,
-                fboMan->getSupportedAlternative(mFormat));
-
-            OGRE_CHECK_GL_ERROR(
-                glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                     static_pointer_cast<GL3PlusTexture>(tempTex)->getGLID(), 0));
-
-            OGRE_CHECK_GL_ERROR(glCheckFramebufferStatus(GL_FRAMEBUFFER));
-
-            // Set viewport to size of destination slice
-            mRenderSystem->_getStateCacheManager()->setViewport(0, 0, dstBox.getWidth(), dstBox.getHeight());
-        }
-        else
-        {
-            // We are going to bind directly, so set viewport to size and position of destination slice
-            mRenderSystem->_getStateCacheManager()->setViewport(dstBox.left, dstBox.top, dstBox.getWidth(), dstBox.getHeight());
-        }
 
         bool isDepth = PixelUtil::isDepth(mFormat);
 
         // Process each destination slice
         for(uint32 slice = dstBox.front; slice < dstBox.back; ++slice)
         {
-            if (!tempTex)
-            {
-                // Bind directly
-                bindToFramebuffer(isDepth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, slice);
-            }
+            // Bind directly
+            bindToFramebuffer(isDepth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, slice);
 
             OGRE_CHECK_GL_ERROR(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER));
 
-            GLbitfield mask = GL_ZERO;
+            GLbitfield mask = 0;
 
             // Bind the appropriate source texture to the read framebuffer
+            src->_bindToFramebuffer(isDepth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, slice,
+                                    GL_READ_FRAMEBUFFER);
             if (isDepth)
             {
-                src->_bindToFramebuffer(GL_DEPTH_ATTACHMENT, slice, GL_READ_FRAMEBUFFER);
-
-                OGRE_CHECK_GL_ERROR(glReadBuffer(GL_NONE));
-
-                mask |= GL_DEPTH_BUFFER_BIT;
-
                 // Depth framebuffer sources can only be blit with nearest filtering
                 filtering = GL_NEAREST;
+                mask |= GL_DEPTH_BUFFER_BIT;
             }
             else
             {
-                src->_bindToFramebuffer(GL_COLOR_ATTACHMENT0, slice, GL_READ_FRAMEBUFFER);
-
                 OGRE_CHECK_GL_ERROR(glReadBuffer(GL_COLOR_ATTACHMENT0));
-
                 mask |= GL_COLOR_BUFFER_BIT;
             }
 
             OGRE_CHECK_GL_ERROR(glCheckFramebufferStatus(GL_READ_FRAMEBUFFER));
-
-            assert(mask != GL_ZERO);
 
             // Perform blit from the source texture bound to read framebuffer to
             // this texture bound to draw framebuffer using the pixel coorinates.
@@ -500,19 +446,13 @@ namespace Ogre {
                                                   mask, filtering));
         }
 
-        // Finish up
-        if (!tempTex)
-        {
-            // Generate mipmaps
-            if (mUsage & TU_AUTOMIPMAP)
-            {
-                mRenderSystem->_getStateCacheManager()->bindGLTexture( mTarget, mTextureID );
-                OGRE_CHECK_GL_ERROR(glGenerateMipmap(mTarget));
-            }
-        }
 
-        // Reset source texture to sane state
-        mRenderSystem->_getStateCacheManager()->bindGLTexture( src->mTarget, src->mTextureID );
+        // Generate mipmaps
+        if (mUsage & TU_AUTOMIPMAP)
+        {
+            mRenderSystem->_getStateCacheManager()->bindGLTexture( mTarget, mTextureID );
+            OGRE_CHECK_GL_ERROR(glGenerateMipmap(mTarget));
+        }
 
         OGRE_CHECK_GL_ERROR(glFramebufferRenderbuffer(
             GL_DRAW_FRAMEBUFFER, isDepth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, 0));
@@ -526,9 +466,6 @@ namespace Ogre {
         
         mRenderSystem->_getStateCacheManager()->deleteGLFrameBuffer(GL_FRAMEBUFFER, tempFBO[0]);
         mRenderSystem->_getStateCacheManager()->deleteGLFrameBuffer(GL_FRAMEBUFFER, tempFBO[1]);
-        
-        if(tempTex)
-            TextureManager::getSingleton().remove(tempTex);
     }
 
     void GL3PlusTextureBuffer::_bindToFramebuffer(GLenum attachment, uint32 zoffset, GLenum which)
@@ -563,8 +500,7 @@ namespace Ogre {
     {
         // Fall back to normal GLHardwarePixelBuffer::blitFromMemory in case
         // the source dimensions match the destination ones, in which case no scaling is needed
-        if (src.getWidth() == dstBox.getWidth() && src.getHeight() == dstBox.getHeight() &&
-            src.getDepth() == dstBox.getDepth())
+        if (src.getSize() == dstBox.getSize())
         {
             GL3PlusHardwarePixelBuffer::blitFromMemory(src, dstBox);
             return;
@@ -581,7 +517,7 @@ namespace Ogre {
             src.getWidth(), src.getHeight(), src.getDepth(), 0, src.format);
 
         // Upload data to 0,0,0 in temporary texture
-        Box tempTarget(0, 0, 0, src.getWidth(), src.getHeight(), src.getDepth());
+        Box tempTarget(src.getSize());
         tex->getBuffer()->blitFromMemory(src, tempTarget);
 
         // Blit from texture

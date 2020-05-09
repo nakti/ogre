@@ -36,6 +36,7 @@ namespace Ogre {
     class GLRenderSystem;
     class GLTexture;
     class GLTextureManager;
+    struct GLGpuProgramBase;
     class GLGpuProgram;
     class GLContext;
     class GLRTTManager;

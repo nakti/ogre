@@ -178,51 +178,30 @@ namespace Ogre {
         typedef std::multimap<size_t, VertexBoneAssignment> VertexBoneAssignmentList;
         typedef MapIterator<VertexBoneAssignmentList> BoneAssignmentIterator;
 
-        /** Gets an iterator for access all bone assignments. 
-        @remarks
-            Only valid if this SubMesh has dedicated geometry.
-        */
-        BoneAssignmentIterator getBoneAssignmentIterator(void);
+        /// @deprecated use getBoneAssignments
+        OGRE_DEPRECATED BoneAssignmentIterator getBoneAssignmentIterator(void);
 
         /** Gets a const reference to the list of bone assignments
         */
-        const VertexBoneAssignmentList& getBoneAssignments() { return mBoneAssignments; }
+        const VertexBoneAssignmentList& getBoneAssignments() const { return mBoneAssignments; }
 
 
         /** Must be called once to compile bone assignments into geometry buffer. */
         void _compileBoneAssignments(void);
 
         typedef ConstMapIterator<AliasTextureNamePairList> AliasTextureIterator;
-        /** Gets an constant iterator to access all texture alias names assigned to this submesh. 
-
-        */
+        /// @deprecated do not use
         AliasTextureIterator getAliasTextureIterator(void) const;
-        /** Adds the alias or replaces an existing one and associates the texture name to it.
-        @remarks
-          The submesh uses the texture alias to replace textures used in the material applied
-          to the submesh.
-        @param
-            aliasName is the name of the alias.
-        @param
-            textureName is the name of the texture to be associated with the alias
-
-        */
+        /// @deprecated do not use
         void addTextureAlias(const String& aliasName, const String& textureName);
-        /** Remove a specific texture alias name from the sub mesh
-        @param
-            aliasName is the name of the alias to be removed.  If it is not found 
-            then it is ignored.
-        */
-        void removeTextureAlias(const String& aliasName);
-        /** removes all texture aliases from the sub mesh
-        */
-        void removeAllTextureAliases(void);
-        /** returns true if the sub mesh has texture aliases
-        */
+        /// @deprecated do not use
+        OGRE_DEPRECATED void removeTextureAlias(const String& aliasName);
+        /// @deprecated do not use
+        OGRE_DEPRECATED void removeAllTextureAliases(void);
+        /// @deprecated do not use
         bool hasTextureAliases(void) const { return !mTextureAliases.empty(); }
-        /** Gets the number of texture aliases assigned to the sub mesh.
-        */
-        size_t getTextureAliasCount(void) const { return mTextureAliases.size(); }
+        /// @deprecated do not use
+        OGRE_DEPRECATED size_t getTextureAliasCount(void) const { return mTextureAliases.size(); }
 
         /**  The current material used by the submesh is copied into a new material
             and the submesh's texture aliases are applied if the current texture alias

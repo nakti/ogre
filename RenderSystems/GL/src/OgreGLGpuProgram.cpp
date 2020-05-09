@@ -66,7 +66,7 @@ GLGpuProgram::~GLGpuProgram()
     unload(); 
 }
 
-bool GLGpuProgram::isAttributeValid(VertexElementSemantic semantic, uint index)
+bool GLGpuProgramBase::isAttributeValid(VertexElementSemantic semantic, uint index)
 {
     // default implementation
     switch(semantic)
@@ -85,19 +85,6 @@ bool GLGpuProgram::isAttributeValid(VertexElementSemantic semantic, uint index)
     }
 
     return false;
-}
-
-//-----------------------------------------------------------------------------
-size_t GLGpuProgram::calculateSize(void) const
-{
-    size_t memSize = 0;
-
-    // Delegate Names
-    memSize += sizeof(GLuint);
-    memSize += sizeof(GLenum);
-    memSize += GpuProgram::calculateSize();
-    
-    return memSize;
 }
 
 GLArbGpuProgram::GLArbGpuProgram(ResourceManager* creator, const String& name, 

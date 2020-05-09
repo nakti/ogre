@@ -65,7 +65,7 @@ if (OGRE_BUILD_TESTS)
       list(APPEND SOURCE_FILES Components/RTShaderSystemTests.cpp)
     endif ()
     
-    if(TEST_GLSUPPORT)
+    if(TARGET OgreGLSupport)
       set(OGRE_LIBRARIES ${OGRE_LIBRARIES} OgreGLSupport)
       list(APPEND SOURCE_FILES RenderSystems/GLSupport/GLSLTests.cpp)
     endif()
@@ -90,8 +90,6 @@ if (OGRE_BUILD_TESTS)
       set_property(TARGET Test_Ogre PROPERTY MACOSX_BUNDLE TRUE)
       set(OGRE_BUILT_FRAMEWORK "$(PLATFORM_NAME)/$(CONFIGURATION)")
       set(OGRE_TEST_CONTENTS_PATH ${PROJECT_BINARY_DIR}/bin/$(CONFIGURATION)/Test_Ogre.app/Contents)
-      set_target_properties(Test_Ogre PROPERTIES
-        LINK_FLAGS "-framework Carbon -framework Cocoa")
       add_custom_command(TARGET Test_Ogre POST_BUILD
         COMMAND mkdir ARGS -p ${OGRE_TEST_CONTENTS_PATH}/Resources/Media/CustomCapabilities
         COMMAND ditto
@@ -105,8 +103,6 @@ if (OGRE_BUILD_TESTS)
         COMMAND ln ARGS -s -f ${PROJECT_BINARY_DIR}/bin/resources.cfg
         ${OGRE_TEST_CONTENTS_PATH}/Resources/
         COMMAND ln ARGS -s -f ${PROJECT_BINARY_DIR}/bin/samples.cfg
-        ${OGRE_TEST_CONTENTS_PATH}/Resources/
-        COMMAND ln ARGS -s -f ${PROJECT_BINARY_DIR}/bin/quakemap.cfg
         ${OGRE_TEST_CONTENTS_PATH}/Resources/
         COMMAND ditto
         ${PROJECT_SOURCE_DIR}/Samples/Media/ ${OGRE_TEST_CONTENTS_PATH}/Resources/Media/
@@ -145,6 +141,7 @@ if (OGRE_BUILD_TESTS)
         Codec_FreeImage
         RenderSystem_GL
         RenderSystem_GL3Plus
+        RenderSystem_Metal
       )
   
       foreach(FWK ${FRAMEWORKS})

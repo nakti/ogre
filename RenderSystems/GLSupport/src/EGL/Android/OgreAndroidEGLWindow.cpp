@@ -77,20 +77,8 @@ namespace Ogre {
 
     void AndroidEGLWindow::resize(uint width, uint height)
     {
-      EGLint format;
-      eglGetConfigAttrib(mEglDisplay, mEglConfig, EGL_NATIVE_VISUAL_ID, &format);
-      EGL_CHECK_ERROR
-
-      if (mScale != 1.0f)
-      {
-        int nwidth = (int)((float)ANativeWindow_getWidth(mWindow) * mScale);
-        int nheight = (int)((float)ANativeWindow_getHeight(mWindow) * mScale);
-        ANativeWindow_setBuffersGeometry(mWindow, nwidth, nheight, format);
-      }
-      else
-      {
-        ANativeWindow_setBuffersGeometry(mWindow, 0, 0, format);
-      }
+        // cannot do this - query size instead
+        windowMovedOrResized();
     }
 
     void AndroidEGLWindow::windowMovedOrResized()
@@ -102,10 +90,24 @@ namespace Ogre {
             // anything else. I put this code here because this function called before any rendering is done.
             // Because the events for screen rotation / resizing did not worked on all devices it is the best way
             // to query the correct dimensions.
-            mContext->setCurrent(); 
-            eglQuerySurface(mEglDisplay, mEglSurface, EGL_WIDTH, (EGLint*)&mWidth);
-            eglQuerySurface(mEglDisplay, mEglSurface, EGL_HEIGHT, (EGLint*)&mHeight);
-            
+            mContext->setCurrent();
+
+            int nwidth = (int)((float)ANativeWindow_getWidth(mWindow) * mScale);
+            int nheight = (int)((float)ANativeWindow_getHeight(mWindow) * mScale);
+
+            if(mScale != 1.0f && (nwidth != int(mWidth) || nheight != int(mHeight)))
+            {
+                // update buffer geometry
+                EGLint format;
+                eglGetConfigAttrib(mEglDisplay, mEglConfig, EGL_NATIVE_VISUAL_ID, &format);
+                EGL_CHECK_ERROR
+
+                ANativeWindow_setBuffersGeometry(mWindow, nwidth, nheight, format);
+            }
+
+            mWidth = nwidth;
+            mHeight = nheight;
+
             // Notify viewports of resize
             ViewportList::iterator it = mViewportList.begin();
             while( it != mViewportList.end() )
@@ -182,7 +184,7 @@ namespace Ogre {
                 if (mMinBufferSize > mMaxBufferSize) mMinBufferSize = mMaxBufferSize;
             }
 
-            if((opt = miscParams->find("MSAA")) != end)
+            if((opt = miscParams->find("FSAA")) != end)
             {
                 mMSAA = Ogre::StringConverter::parseInt(opt->second);
             }
@@ -237,7 +239,7 @@ namespace Ogre {
             mHwGamma = false;
         }
         
-        mContext = createEGLContext();
+        mContext = createEGLContext(eglContext);
         mContext->setCurrent();
 
         eglQuerySurface(mEglDisplay, mEglSurface, EGL_WIDTH, (EGLint*)&mWidth);
@@ -260,7 +262,7 @@ namespace Ogre {
             mContext->setCurrent();
 
             static_cast<GLRenderSystemCommon*>(Root::getSingletonPtr()->getRenderSystem())->notifyOnContextLost();
-            mContext->_destroyInternalResources();
+            static_cast<EGLContext*>(mContext)->_destroyInternalResources();
         }
         
         eglDestroySurface(mEglDisplay, mEglSurface);
@@ -303,7 +305,7 @@ namespace Ogre {
             }
 
             mEglSurface = createSurfaceFromWindow(mEglDisplay, mWindow);
-            mContext->_updateInternalResources(mEglDisplay, mEglConfig, mEglSurface);
+            static_cast<EGLContext*>(mContext)->_updateInternalResources(mEglDisplay, mEglConfig, mEglSurface);
         }
         else
         {
@@ -415,7 +417,7 @@ namespace Ogre {
             
             if (!mPreserveContext)
             {
-                mContext->_createInternalResources(mEglDisplay, mEglConfig, mEglSurface, NULL);
+                static_cast<EGLContext*>(mContext)->_createInternalResources(mEglDisplay, mEglConfig, mEglSurface, NULL);
 
                 static_cast<GLRenderSystemCommon*>(Root::getSingletonPtr()->getRenderSystem())->resetRenderer(this);
             }

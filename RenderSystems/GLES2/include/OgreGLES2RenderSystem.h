@@ -73,10 +73,6 @@ namespace Ogre {
             /// State cache manager which responsible to reduce redundant state changes
             GLES2StateCacheManager* mStateCacheManager;
 
-            typedef std::list<GLContext*> GLContextList;
-            /// List of background thread contexts
-            GLContextList mBackgroundContextList;
-
             GpuProgramManager *mGpuProgramManager;
             GLSLESProgramFactory* mGLSLESProgramFactory;
 #if !OGRE_NO_GLES2_CG_SUPPORT
@@ -110,9 +106,6 @@ namespace Ogre {
 
             // Mipmap count of the actual bounded texture
             size_t mCurTexMipCount;
-        
-            // Store scissor box
-            GLint mScissorBox[4];
 
         public:
             // Default constructor / destructor
@@ -161,8 +154,6 @@ namespace Ogre {
 
             void _setViewport(Viewport *vp);
 
-            void _beginFrame(void);
-
             void _endFrame(void);
 
             void _setCullingMode(CullingMode mode);
@@ -177,7 +168,7 @@ namespace Ogre {
 
             void _setDepthBias(float constantBias, float slopeScaleBias);
 
-            void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha);
+            void setColourBlendState(const ColourBlendState& state);
 
             void _setPolygonMode(PolygonMode level);
 
@@ -198,17 +189,12 @@ namespace Ogre {
 
             void _render(const RenderOperation& op);
 
-            void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);
+            void setScissorTest(bool enabled, const Rect& rect = Rect());
 
             void clearFrameBuffer(unsigned int buffers,
                 const ColourValue& colour = ColourValue::Black,
                 Real depth = 1.0f, unsigned short stencil = 0);
             HardwareOcclusionQuery* createHardwareOcclusionQuery(void);
-            OGRE_MUTEX(mThreadInitMutex);
-            void registerThread();
-            void unregisterThread();
-            void preExtraThreadsStarted();
-            void postExtraThreadsStarted();
 
             // ----------------------------------
             // GLES2RenderSystem specific members
@@ -235,9 +221,6 @@ namespace Ogre {
             /** Switch GL context, dealing with involved internal cached states too
              */
             void _switchContext(GLContext *context);
-            /** One time initialization for the RenderState of a context. Things that
-             only need to be set once, like the LightingModel can be defined here.
-             */
             void _oneTimeContextInitialization();
             void initialiseContext(RenderWindow* primary);
             /**
@@ -252,8 +235,6 @@ namespace Ogre {
             void unbindGpuProgram(GpuProgramType gptype);
             void bindGpuProgramParameters(GpuProgramType gptype, const GpuProgramParametersPtr& params, uint16 mask);
 
-            /// @copydoc RenderSystem::_setSeparateSceneBlending
-            void _setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp );
             /// @copydoc RenderSystem::_setAlphaRejectSettings
             void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
             /// @copydoc RenderSystem::getDisplayMonitorCount

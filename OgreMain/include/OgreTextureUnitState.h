@@ -56,6 +56,7 @@ namespace Ogre {
             TextureAddressingMode u, v, w;
         };
 
+        /// must be created through TextureManager
         Sampler();
         virtual ~Sampler();
 
@@ -340,6 +341,7 @@ namespace Ogre {
         ~TextureUnitState();
 
         /** Name-based constructor.
+        @param parent the parent Pass object.
         @param texName
             The basic name of the texture e.g. brickwall.jpg, stonefloor.png.
         @param texCoordSet
@@ -379,11 +381,7 @@ namespace Ogre {
         /**
         @deprecated use setLayerArrayNames()
          */
-        OGRE_DEPRECATED void setCubicTextureName( const String* const names, bool forUVW = false )
-        {
-            setLayerArrayNames(TEX_TYPE_CUBE_MAP,
-                               std::vector<String>(names, names + 6));
-        }
+        OGRE_DEPRECATED void setCubicTextureName( const String* const names, bool forUVW = false );
 
         /**
         @deprecated use setTexture()
@@ -400,7 +398,7 @@ namespace Ogre {
             if you specify a name of "flame.jpg" with 3 frames, the image names must be "flame_0.jpg", "flame_1.jpg"
             and "flame_2.jpg".
 
-            You can change the active frame on a texture layer by calling the setCurrentFrame method.
+            You can change the active frame on a texture layer by calling the Ogre::TextureUnitState::setCurrentFrame method.
         @note
             If you can't make your texture images conform to the naming standard laid out here, you
             can call the alternative setAnimatedTextureName method which takes an array of names instead.
@@ -415,7 +413,6 @@ namespace Ogre {
         void setAnimatedTextureName( const String& name, size_t numFrames, Real duration = 0 );
 
         /// @overload
-        /// @param names Pointer to array of names of the textures to use, in frame order.
         /// @deprecated use setAnimatedTextureName( const std::vector<String>&, Real )
         void setAnimatedTextureName( const String* const names, size_t numFrames, Real duration = 0 );
 
@@ -550,11 +547,11 @@ namespace Ogre {
         */
         int getNumMipmaps(void) const;
 
-        /// @copydoc Texture::setTreatLuminanceAsAlpha
-        void setIsAlpha(bool isAlpha);
+        /// @deprecated use setDesiredFormat(PF_A8)
+        OGRE_DEPRECATED void setIsAlpha(bool isAlpha);
 
-        /// @copydoc Texture::getTreatLuminanceAsAlpha
-        bool getIsAlpha(void) const;
+        /// @deprecated do not use
+        OGRE_DEPRECATED bool getIsAlpha(void) const;
 
         /// @copydoc Texture::getGamma
         float getGamma() const;
@@ -694,7 +691,7 @@ namespace Ogre {
         {
             _getLocalSampler()->setFiltering(filterType);
         }
-        /// @copydoc Sampler::setFiltering
+        /// @copydoc Sampler::setFiltering(FilterType, FilterOptions)
         void setTextureFiltering(FilterType ftype, FilterOptions opts)
         {
             _getLocalSampler()->setFiltering(ftype, opts);
@@ -1070,21 +1067,8 @@ namespace Ogre {
         */
         const String& getTextureNameAlias(void) const { return mTextureNameAlias;}
 
-        /** Applies texture names to Texture Unit State with matching texture name aliases.
-            If no matching aliases are found then the TUS state does not change.
-
-            Cubic, 1d, 2d, and 3d textures are determined from current state of the Texture Unit.
-            Assumes animated frames are sequentially numbered in the name.
-            If matching texture aliases are found then true is returned.
-
-        @param aliasList
-            A map container of texture alias, texture name pairs.
-        @param apply
-            Set @c true to apply the texture aliases else just test to see if texture alias matches are found.
-        @return
-            True if matching texture aliases were found in the Texture Unit State.
-        */
-        bool applyTextureAliases(const AliasTextureNamePairList& aliasList, const bool apply = true);
+        /// @deprecated do not use
+        OGRE_DEPRECATED bool applyTextureAliases(const AliasTextureNamePairList& aliasList, const bool apply = true);
 
         /** Notify this object that its parent has changed. */
         void _notifyParent(Pass* parent);

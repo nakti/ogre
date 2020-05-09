@@ -24,15 +24,11 @@ elseif (APPLE)
     set(OGRE_MEDIA_DIR_REL "${OGRE_MEDIA_PATH}")
     set(OGRE_TEST_MEDIA_DIR_REL "../../Tests/${OGRE_MEDIA_PATH}")
   else()
-    if(OGRE_INSTALL_SAMPLES_SOURCE)
-      set(OGRE_MEDIA_DIR_REL "../../../${OGRE_MEDIA_PATH}")
-    else()
-      set(OGRE_MEDIA_DIR_REL "../../../../Samples/${OGRE_MEDIA_PATH}")
-      set(OGRE_TEST_MEDIA_DIR_REL "../../../../Tests/${OGRE_MEDIA_PATH}")
-    endif()
+    set(OGRE_MEDIA_DIR_REL "${CMAKE_INSTALL_PREFIX}/${OGRE_MEDIA_PATH}")
+    set(OGRE_TEST_MEDIA_DIR_REL "${CMAKE_INSTALL_PREFIX}/Tests/Media")
   endif()
   # these are resolved relative to the app bundle
-  set(OGRE_PLUGIN_DIR_REL "Contents/Frameworks/")
+  set(OGRE_PLUGIN_DIR_REL "${CMAKE_INSTALL_PREFIX}/lib/${CMAKE_BUILD_TYPE}/")
   set(OGRE_SAMPLES_DIR_REL "Contents/Plugins/")
   set(OGRE_CFG_INSTALL_PATH "bin")
 elseif (UNIX)
@@ -77,6 +73,9 @@ if (NOT OGRE_BUILD_RENDERSYSTEM_GL3PLUS)
 endif ()
 if (NOT OGRE_BUILD_RENDERSYSTEM_GLES2)
   set(OGRE_COMMENT_RENDERSYSTEM_GLES2 "#")
+endif ()
+if (NOT OGRE_BUILD_RENDERSYSTEM_METAL)
+  set(OGRE_COMMENT_RENDERSYSTEM_METAL "#")
 endif ()
 if (NOT OGRE_BUILD_PLUGIN_BSP)
   set(OGRE_COMMENT_PLUGIN_BSP "#")
@@ -128,7 +127,6 @@ set(OGRE_CORE_MEDIA_DIR "${OGRE_MEDIA_DIR_REL}")
 # CREATE CONFIG FILES - INSTALL VERSIONS
 configure_file(${OGRE_TEMPLATES_DIR}/resources.cfg.in ${PROJECT_BINARY_DIR}/inst/bin/resources.cfg)
 configure_file(${OGRE_TEMPLATES_DIR}/plugins.cfg.in ${PROJECT_BINARY_DIR}/inst/bin/plugins.cfg)
-configure_file(${OGRE_TEMPLATES_DIR}/quakemap.cfg.in ${PROJECT_BINARY_DIR}/inst/bin/quakemap.cfg)
 configure_file(${OGRE_TEMPLATES_DIR}/samples.cfg.in ${PROJECT_BINARY_DIR}/inst/bin/samples.cfg)
 configure_file(${OGRE_TEMPLATES_DIR}/tests.cfg.in ${PROJECT_BINARY_DIR}/inst/bin/tests.cfg)
 
@@ -139,7 +137,6 @@ install(FILES
   ${PROJECT_BINARY_DIR}/inst/bin/plugins.cfg
   ${PROJECT_BINARY_DIR}/inst/bin/samples.cfg
   ${PROJECT_BINARY_DIR}/inst/bin/tests.cfg
-  ${PROJECT_BINARY_DIR}/inst/bin/quakemap.cfg
   DESTINATION "${OGRE_CFG_INSTALL_PATH}"
 )
 
@@ -180,11 +177,6 @@ elseif (MSVC AND NOT NMAKE)
   configure_file(${OGRE_TEMPLATES_DIR}/plugins.cfg.in ${PROJECT_BINARY_DIR}/bin/minsizerel/plugins.cfg)
   configure_file(${OGRE_TEMPLATES_DIR}/plugins.cfg.in ${PROJECT_BINARY_DIR}/bin/debug/plugins.cfg)
 
-  configure_file(${OGRE_TEMPLATES_DIR}/quakemap.cfg.in ${PROJECT_BINARY_DIR}/bin/release/quakemap.cfg)
-  configure_file(${OGRE_TEMPLATES_DIR}/quakemap.cfg.in ${PROJECT_BINARY_DIR}/bin/relwithdebinfo/quakemap.cfg)
-  configure_file(${OGRE_TEMPLATES_DIR}/quakemap.cfg.in ${PROJECT_BINARY_DIR}/bin/minsizerel/quakemap.cfg)
-  configure_file(${OGRE_TEMPLATES_DIR}/quakemap.cfg.in ${PROJECT_BINARY_DIR}/bin/debug/quakemap.cfg)
-
   configure_file(${OGRE_TEMPLATES_DIR}/samples.cfg.in ${PROJECT_BINARY_DIR}/bin/release/samples.cfg)
   configure_file(${OGRE_TEMPLATES_DIR}/samples.cfg.in ${PROJECT_BINARY_DIR}/bin/relwithdebinfo/samples.cfg)
   configure_file(${OGRE_TEMPLATES_DIR}/samples.cfg.in ${PROJECT_BINARY_DIR}/bin/minsizerel/samples.cfg)
@@ -199,8 +191,6 @@ else() # other OS only need one cfg file
   configure_file(${OGRE_TEMPLATES_DIR}/resources.cfg.in ${PROJECT_BINARY_DIR}/bin/resources.cfg)
   # create plugins.cfg
   configure_file(${OGRE_TEMPLATES_DIR}/plugins.cfg.in ${PROJECT_BINARY_DIR}/bin/plugins.cfg)
-  # create quakemap.cfg
-  configure_file(${OGRE_TEMPLATES_DIR}/quakemap.cfg.in ${PROJECT_BINARY_DIR}/bin/quakemap.cfg)
   # create samples.cfg
   configure_file(${OGRE_TEMPLATES_DIR}/samples.cfg.in ${PROJECT_BINARY_DIR}/bin/samples.cfg)
   # create tests.cfg
@@ -215,6 +205,11 @@ if(WIN32 OR APPLE)
   set(OGRE_CMAKE_DIR "CMake")
 else()
   set(OGRE_CMAKE_DIR "${OGRE_LIB_DIRECTORY}/OGRE/cmake")
+endif()
+if(WIN32)
+  set(OGRE_PLUGIN_DIR_CMAKE "bin")
+else()
+  set(OGRE_PLUGIN_DIR_CMAKE "lib/OGRE")
 endif()
 configure_package_config_file(${OGRE_TEMPLATES_DIR}/OGREConfig.cmake.in ${PROJECT_BINARY_DIR}/cmake/OGREConfig.cmake
     INSTALL_DESTINATION ${OGRE_CMAKE_DIR}

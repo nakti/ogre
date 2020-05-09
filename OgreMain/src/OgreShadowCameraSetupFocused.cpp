@@ -48,10 +48,12 @@ namespace Ogre
 
     FocusedShadowCameraSetup::FocusedShadowCameraSetup(bool useAggressiveRegion)
         : mTempFrustum(OGRE_NEW Frustum())
+        , mLightFrustumCameraNode(NULL)
         , mLightFrustumCamera(OGRE_NEW Camera("TEMP LIGHT INTERSECT CAM", NULL))
         , mLightFrustumCameraCalculated(false)
         , mUseAggressiveRegion(useAggressiveRegion)
     {
+        mLightFrustumCamera->_notifyAttached(&mLightFrustumCameraNode);
         mTempFrustum->setProjectionType(PT_PERSPECTIVE);
     }
 
@@ -102,8 +104,8 @@ namespace Ogre
             if (out_cam != NULL)
             {
                 out_cam->setProjectionType(PT_ORTHOGRAPHIC);
-                out_cam->setDirection(light.getDerivedDirection());
-                out_cam->setPosition(cam.getDerivedPosition());
+                out_cam->getParentSceneNode()->setDirection(light.getDerivedDirection(), Node::TS_WORLD);
+                out_cam->getParentSceneNode()->setPosition(cam.getDerivedPosition());
                 out_cam->setFOVy(Degree(90));
                 out_cam->setNearClipDistance(shadowOffset);
             }
@@ -143,8 +145,8 @@ namespace Ogre
             if (out_cam != NULL)
             {
                 out_cam->setProjectionType(PT_PERSPECTIVE);
-                out_cam->setDirection(lightDir);
-                out_cam->setPosition(light.getDerivedPosition());
+                out_cam->getParentSceneNode()->setDirection(lightDir, Node::TS_WORLD);
+                out_cam->getParentSceneNode()->setPosition(light.getDerivedPosition());
                 out_cam->setFOVy(Degree(120));
                 out_cam->setNearClipDistance(light._deriveShadowNearClipDistance(&cam));
                 out_cam->setFarClipDistance(light._deriveShadowFarClipDistance(&cam));
@@ -176,8 +178,8 @@ namespace Ogre
             if (out_cam != NULL)
             {
                 out_cam->setProjectionType(PT_PERSPECTIVE);
-                out_cam->setDirection(light.getDerivedDirection());
-                out_cam->setPosition(light.getDerivedPosition());
+                out_cam->getParentSceneNode()->setDirection(light.getDerivedDirection(), Node::TS_WORLD);
+                out_cam->getParentSceneNode()->setPosition(light.getDerivedPosition());
                 out_cam->setFOVy(Ogre::Math::Clamp<Radian>(light.getSpotlightOuterAngle() * 1.2, Radian(0), Radian(Math::PI/2.0f)));
                 out_cam->setNearClipDistance(light._deriveShadowNearClipDistance(&cam));
                 out_cam->setFarClipDistance(light._deriveShadowFarClipDistance(&cam));
@@ -385,16 +387,11 @@ namespace Ogre
     Affine3 FocusedShadowCameraSetup::buildViewMatrix(const Vector3& pos, const Vector3& dir,
         const Vector3& up) const
     {
-        Vector3 xN = dir.crossProduct(up);
-        xN.normalise();
-        Vector3 upN = xN.crossProduct(dir);
-        upN.normalise();
-
-        Affine3 m(xN.x,     xN.y,       xN.z,       -xN.dotProduct(pos),
-            upN.x,      upN.y,      upN.z,      -upN.dotProduct(pos),
-            -dir.x,     -dir.y, -dir.z, dir.dotProduct(pos));
-
-        return m;
+        Matrix3 Rt = Math::lookRotation(-dir, up).transpose();
+        Matrix4 m;
+        m = Rt;
+        m.setTrans(-Rt * pos);
+        return Affine3(m); // make sure projective part is identity
     }
     //-----------------------------------------------------------------------
     void FocusedShadowCameraSetup::getShadowCamera (const SceneManager *sm, const Camera *cam, 

@@ -323,6 +323,8 @@ namespace Ogre
                 Root::createRenderWindow). The window will be
                 created based on the options currently set on the render
                 system.
+            @param windowTitle
+            @param customCapabilitiesConfig see #useCustomRenderSystemCapabilities
             @return
                 A pointer to the automatically created window, if
                 requested, otherwise <b>NULL</b>.
@@ -363,7 +365,7 @@ namespace Ogre
         /// @copydoc SceneManagerEnumerator::getMetaData(const String& )const
         const SceneManagerMetaData* getSceneManagerMetaData(const String& typeName) const;
 
-        /// @copydoc SceneManagerEnumerator::getMetaData()
+        /// @copydoc SceneManagerEnumerator::getMetaData()const
         const SceneManagerEnumerator::MetaDataList& getSceneManagerMetaData() const;
 
         /// @copydoc SceneManagerEnumerator::getMetaDataIterator

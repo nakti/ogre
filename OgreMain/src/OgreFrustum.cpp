@@ -54,10 +54,10 @@ namespace Ogre {
         mCustomProjMatrix(false),
         mFrustumExtentsManuallySet(false),
         mOrientationMode(OR_DEGREE_0),
-        mReflect(false), 
         mLinkedReflectPlane(0),
-        mObliqueDepthProjection(false), 
-        mLinkedObliqueProjPlane(0)
+        mLinkedObliqueProjPlane(0),
+        mReflect(false),
+        mObliqueDepthProjection(false)
     {
         // Initialise material
         mMaterial = MaterialManager::getSingleton().getDefaultMaterial(false);
@@ -478,7 +478,6 @@ namespace Ogre {
         // Deal with orientation mode
         mProjMatrix = mProjMatrix * Quaternion(Degree(mOrientationMode * 90.f), Vector3::UNIT_Z);
 #endif
-
         RenderSystem* renderSystem = Root::getSingleton().getRenderSystem();
 
         if(renderSystem)
@@ -944,7 +943,7 @@ namespace Ogre {
         mRecalcWorldSpaceCorners = true;
     }
     // -------------------------------------------------------------------
-    const Vector3* Frustum::getWorldSpaceCorners(void) const
+    const Frustum::Corners& Frustum::getWorldSpaceCorners(void) const
     {
         updateWorldSpaceCorners();
 

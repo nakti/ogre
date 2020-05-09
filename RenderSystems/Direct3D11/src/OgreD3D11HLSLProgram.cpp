@@ -49,7 +49,6 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     D3D11HLSLProgram::CmdEntryPoint D3D11HLSLProgram::msCmdEntryPoint;
     D3D11HLSLProgram::CmdTarget D3D11HLSLProgram::msCmdTarget;
-    D3D11HLSLProgram::CmdPreprocessorDefines D3D11HLSLProgram::msCmdPreprocessorDefines;
     D3D11HLSLProgram::CmdColumnMajorMatrices D3D11HLSLProgram::msCmdColumnMajorMatrices;
     D3D11HLSLProgram::CmdEnableBackwardsCompatibility D3D11HLSLProgram::msCmdEnableBackwardsCompatibility;
     //-----------------------------------------------------------------------
@@ -62,7 +61,7 @@ namespace Ogre {
     void D3D11HLSLProgram::notifyDeviceRestored(D3D11Device* device)
     {
         if(mHighLevelLoaded)
-            loadHighLevelImpl();
+            loadFromSource();
     }
     //-----------------------------------------------------------------------
     void D3D11HLSLProgram::createConstantBuffer(const UINT ByteWidth)
@@ -182,7 +181,12 @@ namespace Ogre {
         macro.Name = "SHADER_MODEL_4";
         defines.push_back(macro);
 
-        
+        if(Root::getSingleton().getRenderSystem()->isReverseDepthBufferEnabled())
+        {
+            macro.Name = "OGRE_REVERSED_Z";
+            defines.push_back(macro);
+        }
+
 		switch (this->mType)
 		{
 			case GPT_VERTEX_PROGRAM:
@@ -215,8 +219,10 @@ namespace Ogre {
         defines.push_back(macro);
     }       
     //-----------------------------------------------------------------------
-    void D3D11HLSLProgram::loadFromSource(void)
+    void D3D11HLSLProgram::prepareImpl()
     {
+        HighLevelGpuProgram::prepareImpl();
+
         uint32 hash = getNameForMicrocodeCache();
         if ( GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(hash) )
         {
@@ -226,6 +232,12 @@ namespace Ogre {
         {
             compileMicrocode();
         }
+    }
+
+    void D3D11HLSLProgram::loadFromSource(void)
+    {
+        if(!mCompileError)
+            analizeMicrocode();
     }
     //-----------------------------------------------------------------------
     void D3D11HLSLProgram::getMicrocodeFromCache(uint32 id)
@@ -394,9 +406,6 @@ namespace Ogre {
             mInterfaceSlots.resize(mInterfaceSlotsSize);
             cacheMicrocode->read(&mInterfaceSlots[0], mInterfaceSlotsSize * sizeof(UINT));
         }
-
-
-        analizeMicrocode();
     }
     //-----------------------------------------------------------------------
     void D3D11HLSLProgram::compileMicrocode(void)
@@ -1011,9 +1020,6 @@ namespace Ogre {
                 GpuProgramManager::getSingleton().addMicrocodeToCache(getNameForMicrocodeCache(), newMicrocode);
             }
         }
-
-        analizeMicrocode();
-
 #endif // else defined(ENABLE_SHADERS_CACHE_LOAD) && (ENABLE_SHADERS_CACHE_LOAD == 1)
     }
     //-----------------------------------------------------------------------
@@ -1163,12 +1169,6 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void D3D11HLSLProgram::createLowLevelImpl(void)
-    {
-        // Create a low-level program, give it the same name as us
-        mAssemblerProgram = GpuProgramPtr(dynamic_cast<GpuProgram*>(this), SPFM_NONE);
-    }
-    //-----------------------------------------------------------------------
     void D3D11HLSLProgram::unloadHighLevelImpl(void)
     {
         mSlotMap.clear();
@@ -1222,9 +1222,6 @@ namespace Ogre {
             }
 
             mConstantDefs->map.emplace(def.Name, def);
-
-            // Now deal with arrays
-            mConstantDefs->generateConstantDefinitionArrayEntries(def.Name, def);
         }
     }
     //-----------------------------------------------------------------------
@@ -1445,7 +1442,7 @@ namespace Ogre {
         ResourceHandle handle, const String& group, bool isManual, 
         ManualResourceLoader* loader, D3D11Device & device)
         : HighLevelGpuProgram(creator, name, handle, group, isManual, loader)
-        , mErrorsInCompile(false), mDevice(device), mConstantBufferSize(0)
+        , mEntryPoint("main"), mErrorsInCompile(false), mDevice(device), mConstantBufferSize(0)
         , mColumnMajorMatrices(true), mEnableBackwardsCompatibility(false), shaderMacroSet(false)
     {
 #if SUPPORT_SM2_0_HLSL_SHADERS == 1
@@ -1463,9 +1460,6 @@ namespace Ogre {
             dict->addParameter(ParameterDef("target", 
                 "Name of the assembler target to compile down to.",
                 PT_STRING),&msCmdTarget);
-            dict->addParameter(ParameterDef("preprocessor_defines", 
-                "Preprocessor defines use to compile the program.",
-                PT_STRING),&msCmdPreprocessorDefines);
             dict->addParameter(ParameterDef("column_major_matrices", 
                 "Whether matrix packing in column-major order.",
                 PT_BOOL),&msCmdColumnMajorMatrices);
@@ -1555,15 +1549,12 @@ namespace Ogre {
         {
             if(mTarget == "vs_2_0") return vs_4_0_level_9_1;
             if(mTarget == "vs_2_a") return vs_4_0_level_9_3;
-            if(mTarget == "vs_2_x") return vs_4_0_level_9_3;
             if(mTarget == "vs_3_0") return vs_4_0;
 
             if(mTarget == "ps_2_0") return ps_4_0_level_9_1;
             if(mTarget == "ps_2_a") return ps_4_0_level_9_3;
             if(mTarget == "ps_2_b") return ps_4_0_level_9_3;
-            if(mTarget == "ps_2_x") return ps_4_0_level_9_3;
             if(mTarget == "ps_3_0") return ps_4_0;
-            if(mTarget == "ps_3_x") return ps_4_0;
         }
 
         return mTarget;
@@ -1594,15 +1585,6 @@ namespace Ogre {
     void D3D11HLSLProgram::CmdTarget::doSet(void *target, const String& val)
     {
         static_cast<D3D11HLSLProgram*>(target)->setTarget(val);
-    }
-    //-----------------------------------------------------------------------
-    String D3D11HLSLProgram::CmdPreprocessorDefines::doGet(const void *target) const
-    {
-        return static_cast<const D3D11HLSLProgram*>(target)->getPreprocessorDefines();
-    }
-    void D3D11HLSLProgram::CmdPreprocessorDefines::doSet(void *target, const String& val)
-    {
-        static_cast<D3D11HLSLProgram*>(target)->setPreprocessorDefines(val);
     }
     //-----------------------------------------------------------------------
     String D3D11HLSLProgram::CmdColumnMajorMatrices::doGet(const void *target) const

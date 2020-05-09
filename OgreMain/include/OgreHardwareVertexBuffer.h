@@ -49,10 +49,10 @@ namespace Ogre {
     {
         protected:
 
+            bool mIsInstanceData;
             HardwareBufferManagerBase* mMgr;
             size_t mNumVertices;
             size_t mVertexSize;
-            bool mIsInstanceData;
             size_t mInstanceDataStepRate;           
             /// Checks if vertex instance data is supported by the render system
             virtual bool checkIfVertexInstanceDataIsSupported();
@@ -174,14 +174,14 @@ namespace Ogre {
     protected:
         /// The source vertex buffer, as bound to an index using VertexBufferBinding
         unsigned short mSource;
+        /// Index of the item, only applicable for some elements like texture coords
+        unsigned short mIndex;
         /// The offset in the buffer that this element starts at
         size_t mOffset;
         /// The type of element
         VertexElementType mType;
         /// The meaning of the element
         VertexElementSemantic mSemantic;
-        /// Index of the item, only applicable for some elements like texture coords
-        unsigned short mIndex;
     public:
         /// Constructor, should not be called directly, only needed because of list
         VertexElement() {}
@@ -414,6 +414,7 @@ namespace Ogre {
         This method adds a single element (positions, normals etc) at a given position in this
         vertex declaration. <b>Please read the information in VertexDeclaration about
         the importance of ordering and structure for compatibility with older D3D drivers</b>.
+        @param atPosition Position where the new element is inserted
         @param source The binding index of HardwareVertexBuffer which will provide the source for this element.
         See VertexBufferBinding for full information.
         @param offset The offset in bytes where this element is located in the buffer

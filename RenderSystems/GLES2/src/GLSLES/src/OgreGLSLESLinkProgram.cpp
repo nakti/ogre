@@ -41,15 +41,9 @@ THE SOFTWARE.
 namespace Ogre {
 
     //-----------------------------------------------------------------------
-    GLSLESLinkProgram::GLSLESLinkProgram(GLSLESProgram* vertexProgram, GLSLESProgram* fragmentProgram)
-    : GLSLESProgramCommon(vertexProgram, fragmentProgram)
+    GLSLESLinkProgram::GLSLESLinkProgram(const GLShaderList& shaders)
+    : GLSLESProgramCommon(shaders)
     {
-        if ((!getVertexProgram() || !mFragmentProgram))
-        {
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
-                        "Attempted to create a shader program without both a vertex and fragment program.",
-                        "GLSLESLinkProgram::GLSLESLinkProgram");
-        }
     }
 
     //-----------------------------------------------------------------------
@@ -75,15 +69,9 @@ namespace Ogre {
 
             OGRE_CHECK_GL_ERROR(mGLProgramHandle = glCreateProgram());
 
-            uint32 hash = 0;
-            GpuProgram* progs[] = {mVertexShader, mFragmentProgram};
-            for(auto p : progs)
-            {
-                if(!p) continue;
-                hash = p->_getHash(hash);
-            }
-
-            if (!getMicrocodeFromCache(hash, mGLProgramHandle))
+            uint32 hash = getCombinedHash();
+            mLinked = getMicrocodeFromCache(hash, mGLProgramHandle);
+            if (!mLinked)
             {
 #if !OGRE_NO_GLES2_GLSL_OPTIMISER
                 // Check CmdParams for each shader type to see if we should optimize
@@ -134,20 +122,12 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void GLSLESLinkProgram::compileAndLink()
     {
-        uint32 hash = 0;
-        GpuProgram* progs[] = {mVertexShader, mFragmentProgram};
-        for(auto p : progs)
-        {
-            if(!p) continue;
-            hash = p->_getHash(hash);
-        }
+        uint32 hash = getCombinedHash();
 
         // attach Vertex Program
-        getVertexProgram()->attachToProgramObject(mGLProgramHandle);
-        setSkeletalAnimationIncluded(getVertexProgram()->isSkeletalAnimationIncluded());
-        
+        mShaders[GPT_VERTEX_PROGRAM]->attachToProgramObject(mGLProgramHandle);
         // attach Fragment Program
-        mFragmentProgram->attachToProgramObject(mGLProgramHandle);
+        mShaders[GPT_FRAGMENT_PROGRAM]->attachToProgramObject(mGLProgramHandle);
         
         bindFixedAttributes( mGLProgramHandle );
 
@@ -184,17 +164,17 @@ namespace Ogre {
         {
             const GpuConstantDefinitionMap* vertParams = 0;
             const GpuConstantDefinitionMap* fragParams = 0;
-            if (getVertexProgram())
+            if (mShaders[GPT_VERTEX_PROGRAM])
             {
-                vertParams = &(getVertexProgram()->getConstantDefinitions().map);
+                vertParams = &(mShaders[GPT_VERTEX_PROGRAM]->getConstantDefinitions().map);
             }
-            if (mFragmentProgram)
+            if (mShaders[GPT_FRAGMENT_PROGRAM])
             {
-                fragParams = &(mFragmentProgram->getConstantDefinitions().map);
+                fragParams = &(mShaders[GPT_FRAGMENT_PROGRAM]->getConstantDefinitions().map);
             }
 
             GLSLESProgramManager::extractUniforms(mGLProgramHandle, vertParams, fragParams,
-                                                  mGLUniformReferences, mSharedParamsBufferMap);
+                                                  mGLUniformReferences);
 
             mUniformRefsBuilt = true;
         }
@@ -223,7 +203,7 @@ namespace Ogre {
                     bool shouldUpdate = true;
 
                     // this is a monolitic program so we can use the cache of any attached shader
-                    GLUniformCache* uniformCache =  mVertexShader->getUniformCache();
+                    GLUniformCache* uniformCache =  mShaders[GPT_VERTEX_PROGRAM]->getUniformCache();
                     switch (def->constType)
                     {
                         case GCT_INT1:
@@ -305,6 +285,14 @@ namespace Ogre {
                         OGRE_CHECK_GL_ERROR(glUniformMatrix4x3fv(currentUniform->mLocation, glArraySize, 
                                                                  GL_FALSE, params->getFloatPointer(def->physicalIndex)));
                         break;
+                    case GCT_SAMPLER1D:
+                    case GCT_SAMPLER1DSHADOW:
+                    case GCT_SAMPLER2D:
+                    case GCT_SAMPLER2DSHADOW:
+                    case GCT_SAMPLER3D:
+                    case GCT_SAMPLERCUBE:
+                    case GCT_SAMPLER2DARRAY:
+                        // Samplers handled like 1-element ints
                     case GCT_INT1:
                         OGRE_CHECK_GL_ERROR(glUniform1iv(currentUniform->mLocation, glArraySize,
                                                          (GLint*)params->getIntPointer(def->physicalIndex)));
@@ -319,17 +307,6 @@ namespace Ogre {
                         break;
                     case GCT_INT4:
                         OGRE_CHECK_GL_ERROR(glUniform4iv(currentUniform->mLocation, glArraySize, 
-                                                         (GLint*)params->getIntPointer(def->physicalIndex)));
-                        break;
-                    case GCT_SAMPLER1D:
-                    case GCT_SAMPLER1DSHADOW:
-                    case GCT_SAMPLER2D:
-                    case GCT_SAMPLER2DSHADOW:
-                    case GCT_SAMPLER3D:
-                    case GCT_SAMPLERCUBE:
-                    case GCT_SAMPLER2DARRAY:
-                        // Samplers handled like 1-element ints
-                        OGRE_CHECK_GL_ERROR(glUniform1iv(currentUniform->mLocation, 1, 
                                                          (GLint*)params->getIntPointer(def->physicalIndex)));
                         break;
                     case GCT_UNKNOWN:

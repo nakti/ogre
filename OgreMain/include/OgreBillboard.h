@@ -35,7 +35,7 @@ THE SOFTWARE.
 #include "OgreCommon.h"
 #include "OgreHeaderPrefix.h"
 #include "OgreMath.h"
-#include "OgreVector3.h"
+#include "OgreVector.h"
 
 namespace Ogre {
     /** \addtogroup Core
@@ -82,9 +82,9 @@ namespace Ogre {
         Vector3 mPosition;
         /// Normalised direction vector
         Vector3 mDirection;
-        BillboardSet* mParentSet;
         ColourValue mColour;
         Radian mRotation;
+        BillboardSet* mParentSet;
 
         /** Default constructor.
         */

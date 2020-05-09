@@ -33,7 +33,7 @@ THE SOFTWARE.
 #include "OgreRenderSystem.h"
 #include "OgreGLHardwareBufferManager.h"
 #include "OgreGLGpuProgramManager.h"
-#include "OgreVector4.h"
+#include "OgreVector.h"
 
 #include "OgreGLRenderSystemCommon.h"
 #include "OgreGLStateCacheManager.h"
@@ -85,17 +85,10 @@ namespace Ogre {
         GLint getTextureAddressingMode(TextureAddressingMode tam) const;
                 void initialiseContext(RenderWindow* primary);
 
-        /// Store last colour write state
-        bool mColourWrite[4];
         /// Store last stencil mask state
         uint32 mStencilWriteMask;
         /// Store last depth write state
         bool mDepthWrite;
-        /// Store last scissor enable state
-        bool mScissorsEnabled;
-
-        /// Store scissor box
-        int mScissorBox[4];
 
         GLint convertCompareFunction(CompareFunction func) const;
         GLint convertStencilOp(StencilOperation op, bool invert = false) const;
@@ -112,13 +105,9 @@ namespace Ogre {
 
         unsigned short mCurrentLights;
 
-        GLGpuProgram* mCurrentVertexProgram;
-        GLGpuProgram* mCurrentFragmentProgram;
-        GLGpuProgram* mCurrentGeometryProgram;
-
-        typedef std::list<GLContext*> GLContextList;
-        /// List of background thread contexts
-        GLContextList mBackgroundContextList;
+        GLGpuProgramBase* mCurrentVertexProgram;
+        GLGpuProgramBase* mCurrentFragmentProgram;
+        GLGpuProgramBase* mCurrentGeometryProgram;
 
         // statecaches are per context
         GLStateCacheManager* mStateCacheManager;
@@ -130,6 +119,9 @@ namespace Ogre {
         // (save allocations)
         std::vector<GLuint> mRenderAttribsBound;
         std::vector<GLuint> mRenderInstanceAttribsBound;
+
+        /// is fixed pipeline enabled
+        bool mEnableFixedPipeline;
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 		/// @copydoc RenderSystem::setDrawBuffer
@@ -162,6 +154,8 @@ namespace Ogre {
         const String& getName(void) const;
 
         void _initialise() override;
+
+        void initConfigOptions() override;
 
         virtual RenderSystemCapabilities* createRenderSystemCapabilities() const;
 
@@ -227,13 +221,9 @@ namespace Ogre {
 
         void _setTextureMatrix(size_t stage, const Matrix4& xform);
 
-        void _setSeparateSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp );
-
         void _setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage);
 
         void _setViewport(Viewport *vp);
-
-        void _beginFrame(void);
 
         void _endFrame(void);
 
@@ -249,7 +239,7 @@ namespace Ogre {
 
         void _setDepthBias(float constantBias, float slopeScaleBias);
 
-        void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha);
+        void setColourBlendState(const ColourBlendState& state);
 
         void _setFog(FogMode mode);
 
@@ -282,23 +272,15 @@ namespace Ogre {
         void bindGpuProgramParameters(GpuProgramType gptype, 
                                       const GpuProgramParametersPtr& params, uint16 variabilityMask);
 
-        void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600) ;
+        void setScissorTest(bool enabled, const Rect& rect = Rect()) ;
         void clearFrameBuffer(unsigned int buffers, 
                               const ColourValue& colour = ColourValue::Black, 
                               Real depth = 1.0f, unsigned short stencil = 0);
         HardwareOcclusionQuery* createHardwareOcclusionQuery(void);
-        OGRE_MUTEX(mThreadInitMutex);
-        void registerThread();
-        void unregisterThread();
-        void preExtraThreadsStarted();
-        void postExtraThreadsStarted();
 
         // ----------------------------------
         // GLRenderSystem specific members
         // ----------------------------------
-        /** One time initialization for the RenderState of a context. Things that
-            only need to be set once, like the LightingModel can be defined here.
-         */
         void _oneTimeContextInitialization();
         /** Switch GL context, dealing with involved internal cached states too
         */

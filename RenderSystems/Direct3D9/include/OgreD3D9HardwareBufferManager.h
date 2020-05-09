@@ -39,9 +39,6 @@ namespace Ogre {
     protected:     
         /// Internal method for creates a new vertex declaration, may be overridden by certain rendering APIs
         VertexDeclaration* createVertexDeclarationImpl(void);
-        /// Internal method for destroys a vertex declaration, may be overridden by certain rendering APIs
-        void destroyVertexDeclarationImpl(VertexDeclaration* decl);
-
     public:
         D3D9HardwareBufferManager();
         ~D3D9HardwareBufferManager();
@@ -51,15 +48,6 @@ namespace Ogre {
         /// Create a hardware vertex buffer
         HardwareIndexBufferSharedPtr 
             createIndexBuffer(HardwareIndexBuffer::IndexType itype, size_t numIndexes, HardwareBuffer::Usage usage, bool useShadowBuffer = false);
-        /// Create a render to vertex buffer
-        RenderToVertexBufferSharedPtr createRenderToVertexBuffer();
-        
-        HardwareUniformBufferSharedPtr 
-            createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name = "");
-
-        HardwareCounterBufferSharedPtr createCounterBuffer(size_t sizeBytes,
-                                                           HardwareBuffer::Usage usage = HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE,
-                                                           bool useShadowBuffer = false, const String& name = "");
     };
 }
 

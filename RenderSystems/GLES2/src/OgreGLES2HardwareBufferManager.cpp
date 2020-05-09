@@ -110,12 +110,6 @@ namespace Ogre {
         return OGRE_NEW GLVertexArrayObject();
     }
 
-    void GLES2HardwareBufferManager::destroyVertexDeclarationImpl(VertexDeclaration* decl)
-    {
-        if(decl)
-            OGRE_DELETE decl;
-    }
-
     GLenum GLES2HardwareBufferManager::getGLType(VertexElementType type)
     {
         switch(type)
@@ -186,13 +180,6 @@ namespace Ogre {
             mUniformBuffers.insert(buf);
         }
         return HardwareUniformBufferSharedPtr(buf);
-    }
-    //---------------------------------------------------------------------
-    Ogre::HardwareCounterBufferSharedPtr GLES2HardwareBufferManager::createCounterBuffer( size_t sizeBytes, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name )
-    {
-        OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
-                    "GLES2 does not support atomic counter buffers",
-                    "GLES2HardwareBufferManager::createCounterBuffer");
     }
 
 }

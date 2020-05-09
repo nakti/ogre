@@ -337,6 +337,8 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Pass::setPointSpritesEnabled(bool enabled)
     {
+        if (!Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_POINT_SPRITES))
+            return;
         mPointSpritesEnabled = enabled;
     }
     //-----------------------------------------------------------------------
@@ -1785,8 +1787,10 @@ namespace Ogre {
 
         for (i = mTextureUnitStates.begin(); i != iend; ++i)
         {
+            OGRE_IGNORE_DEPRECATED_BEGIN
             if ((*i)->applyTextureAliases(aliasList, apply))
                 testResult = true;
+            OGRE_IGNORE_DEPRECATED_END
         }
 
         return testResult;

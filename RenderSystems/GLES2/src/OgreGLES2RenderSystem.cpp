@@ -548,12 +548,6 @@ namespace Ogre {
         LogManager::getSingleton().logMessage("GL ES 2: Using FBOs for rendering to textures");
         mRTTManager = new GLES2FBOManager();
 
-        Log* defaultLog = LogManager::getSingleton().getDefaultLog();
-        if (defaultLog)
-        {
-            caps->log(defaultLog);
-        }
-
         mGLInitialised = true;
     }
 
@@ -581,6 +575,14 @@ namespace Ogre {
             mGLSLESCgProgramFactory = 0;
         }
 #endif
+        // Delete extra threads contexts
+        for (auto pCurContext : mBackgroundContextList)
+        {
+            pCurContext->releaseContext();
+            OGRE_DELETE pCurContext;
+        }
+        mBackgroundContextList.clear();
+
         // Deleting the GPU program manager and hardware buffer manager.  Has to be done before the mGLSupport->stop().
         if(mGpuProgramManager)
         {
@@ -597,19 +599,6 @@ namespace Ogre {
 
         OGRE_DELETE mTextureManager;
         mTextureManager = 0;
-
-        // Delete extra threads contexts
-        for (GLContextList::iterator i = mBackgroundContextList.begin();
-             i != mBackgroundContextList.end(); ++i)
-        {
-            GLContext* pCurContext = *i;
-
-            pCurContext->releaseContext();
-
-            delete pCurContext;
-        }
-
-        mBackgroundContextList.clear();
 
         RenderSystem::shutdown();
 
@@ -942,74 +931,6 @@ namespace Ogre {
         return GL_ONE;
     }
 
-    void GLES2RenderSystem::_setSeparateSceneBlending(
-        SceneBlendFactor sourceFactor, SceneBlendFactor destFactor,
-        SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha,
-        SceneBlendOperation op, SceneBlendOperation alphaOp )
-    {
-        GLenum sourceBlend = getBlendMode(sourceFactor);
-        GLenum destBlend = getBlendMode(destFactor);
-        GLenum sourceBlendAlpha = getBlendMode(sourceFactorAlpha);
-        GLenum destBlendAlpha = getBlendMode(destFactorAlpha);
-        
-        if(sourceFactor == SBF_ONE && destFactor == SBF_ZERO && 
-           sourceFactorAlpha == SBF_ONE && destFactorAlpha == SBF_ZERO)
-        {
-            mStateCacheManager->setDisabled(GL_BLEND);
-        }
-        else
-        {
-            mStateCacheManager->setEnabled(GL_BLEND);
-            mStateCacheManager->setBlendFunc(sourceBlend, destBlend, sourceBlendAlpha, destBlendAlpha);
-        }
-        
-        GLint func = GL_FUNC_ADD, alphaFunc = GL_FUNC_ADD;
-        
-        switch(op)
-        {
-            case SBO_ADD:
-                func = GL_FUNC_ADD;
-                break;
-            case SBO_SUBTRACT:
-                func = GL_FUNC_SUBTRACT;
-                break;
-            case SBO_REVERSE_SUBTRACT:
-                func = GL_FUNC_REVERSE_SUBTRACT;
-                break;
-            case SBO_MIN:
-                if(hasMinGLVersion(3, 0) || checkExtension("GL_EXT_blend_minmax"))
-                    func = GL_MIN_EXT;
-                break;
-            case SBO_MAX:
-                if(hasMinGLVersion(3, 0) || checkExtension("GL_EXT_blend_minmax"))
-                    func = GL_MAX_EXT;
-                break;
-        }
-        
-        switch(alphaOp)
-        {
-            case SBO_ADD:
-                alphaFunc = GL_FUNC_ADD;
-                break;
-            case SBO_SUBTRACT:
-                alphaFunc = GL_FUNC_SUBTRACT;
-                break;
-            case SBO_REVERSE_SUBTRACT:
-                alphaFunc = GL_FUNC_REVERSE_SUBTRACT;
-                break;
-            case SBO_MIN:
-                if(hasMinGLVersion(3, 0) || checkExtension("GL_EXT_blend_minmax"))
-                    alphaFunc = GL_MIN_EXT;
-                break;
-            case SBO_MAX:
-                if(hasMinGLVersion(3, 0) || checkExtension("GL_EXT_blend_minmax"))
-                    alphaFunc = GL_MAX_EXT;
-                break;
-        }
-        
-        mStateCacheManager->setBlendEquation(func, alphaFunc);
-    }
-
     void GLES2RenderSystem::_setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage)
     {
         if (getCapabilities()->hasCapability(RSC_ALPHA_TO_COVERAGE))
@@ -1037,18 +958,14 @@ namespace Ogre {
             _setRenderTarget(target);
             mActiveViewport = vp;
             
-            GLsizei x, y, w, h;
-            
             // Calculate the "lower-left" corner of the viewport
-            w = vp->getActualWidth();
-            h = vp->getActualHeight();
-            x = vp->getActualLeft();
-            y = vp->getActualTop();
-            
+            Rect vpRect = vp->getActualDimensions();
             if (!target->requiresTextureFlipping())
             {
                 // Convert "upper-left" corner to "lower-left"
-                y = target->getHeight() - h - y;
+                std::swap(vpRect.top, vpRect.bottom);
+                vpRect.top = target->getHeight() - vpRect.top;
+                vpRect.bottom = target->getHeight() - vpRect.bottom;
             }
             
 #if OGRE_NO_VIEWPORT_ORIENTATIONMODE == 0
@@ -1058,25 +975,13 @@ namespace Ogre {
             if ((opt = mGLSupport->getConfigOptions().find("Orientation")) != end)
             {
                 String val = opt->second.currentValue;
-                String::size_type pos = val.find("Landscape");
-                
-                if (pos != String::npos)
+                if (val.find("Landscape") != String::npos)
                 {
-                    GLsizei temp = h;
-                    h = w;
-                    w = temp;
+                    std::swap(vpRect.right, vpRect.bottom);
                 }
             }
 #endif
-            
-            mStateCacheManager->setViewport(x, y, w, h);
-
-            // Configure the viewport clipping
-            OGRE_CHECK_GL_ERROR(glScissor(x, y, w, h));
-            mScissorBox[0] = x;
-            mScissorBox[1] = y;
-            mScissorBox[2] = w;
-            mScissorBox[3] = h;
+            mStateCacheManager->setViewport(vpRect);
 
             vp->_clearUpdatedFlag();
         }
@@ -1092,21 +997,8 @@ namespace Ogre {
 #endif
     }
 
-    void GLES2RenderSystem::_beginFrame(void)
-    {
-        if (!mActiveViewport)
-            OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
-                        "Cannot begin frame - no viewport selected.",
-                        "GLES2RenderSystem::_beginFrame");
-
-        mStateCacheManager->setEnabled(GL_SCISSOR_TEST);
-    }
-
     void GLES2RenderSystem::_endFrame(void)
     {
-        // Deactivate the viewport clipping.
-        mStateCacheManager->setDisabled(GL_SCISSOR_TEST);
-
         // unbind GPU programs at end of frame
         // this is mostly to avoid holding bound programs that might get deleted
         // outside via the resource manager
@@ -1205,10 +1097,44 @@ namespace Ogre {
             mStateCacheManager->setDisabled(GL_POLYGON_OFFSET_FILL);
         }
     }
-
-    void GLES2RenderSystem::_setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha)
+    static GLenum getBlendOp(SceneBlendOperation op, bool hasMinMax)
     {
-        mStateCacheManager->setColourMask(red, green, blue, alpha);
+        switch (op)
+        {
+        case SBO_ADD:
+            return GL_FUNC_ADD;
+        case SBO_SUBTRACT:
+            return GL_FUNC_SUBTRACT;
+        case SBO_REVERSE_SUBTRACT:
+            return GL_FUNC_REVERSE_SUBTRACT;
+        case SBO_MIN:
+            return hasMinMax ? GL_MIN : GL_FUNC_ADD;
+        case SBO_MAX:
+            return hasMinMax ? GL_MAX : GL_FUNC_ADD;
+        }
+        return GL_FUNC_ADD;
+    }
+    void GLES2RenderSystem::setColourBlendState(const ColourBlendState& state)
+    {
+        // record this
+        mCurrentBlend = state;
+
+        if (state.blendingEnabled())
+        {
+            mStateCacheManager->setEnabled(GL_BLEND);
+            mStateCacheManager->setBlendFunc(
+                getBlendMode(state.sourceFactor), getBlendMode(state.destFactor),
+                getBlendMode(state.sourceFactorAlpha), getBlendMode(state.destFactorAlpha));
+        }
+        else
+        {
+            mStateCacheManager->setDisabled(GL_BLEND);
+        }
+
+        bool hasMinMax = hasMinGLVersion(3, 0) || checkExtension("GL_EXT_blend_minmax");
+        mStateCacheManager->setBlendEquation(getBlendOp(state.operation, hasMinMax),
+                                             getBlendOp(state.alphaOperation, hasMinMax));
+        mStateCacheManager->setColourMask(state.writeR, state.writeG, state.writeB, state.writeA);
     }
 
     //---------------------------------------------------------------------
@@ -1515,49 +1441,24 @@ namespace Ogre {
         mRenderInstanceAttribsBound.clear();
     }
 
-    void GLES2RenderSystem::setScissorTest(bool enabled, size_t left,
-                                        size_t top, size_t right,
-                                        size_t bottom)
+    void GLES2RenderSystem::setScissorTest(bool enabled, const Rect& rect)
     {
-        // If request texture flipping, use "upper-left", otherwise use "lower-left"
-        bool flipping = mActiveRenderTarget->requiresTextureFlipping();
-        //  GL measures from the bottom, not the top
-        size_t targetHeight = mActiveRenderTarget->getHeight();
-        // Calculate the "lower-left" corner of the viewport
-        size_t w, h, x, y;
-
-        if (enabled)
-        {
-            mStateCacheManager->setEnabled(GL_SCISSOR_TEST);
-            // NB GL uses width / height rather than right / bottom
-            x = left;
-            if (flipping)
-                y = top;
-            else
-                y = targetHeight - bottom;
-            w = right - left;
-            h = bottom - top;
-            OGRE_CHECK_GL_ERROR(glScissor(static_cast<GLsizei>(x),
-                                          static_cast<GLsizei>(y),
-                                          static_cast<GLsizei>(w),
-                                          static_cast<GLsizei>(h)));
-        }
-        else
+        if (!enabled)
         {
             mStateCacheManager->setDisabled(GL_SCISSOR_TEST);
-            // GL requires you to reset the scissor when disabling
-            w = mActiveViewport->getActualWidth();
-            h = mActiveViewport->getActualHeight();
-            x = mActiveViewport->getActualLeft();
-            if (flipping)
-                y = mActiveViewport->getActualTop();
-            else
-                y = targetHeight - mActiveViewport->getActualTop() - h;
-            OGRE_CHECK_GL_ERROR(glScissor(static_cast<GLsizei>(x),
-                                          static_cast<GLsizei>(y),
-                                          static_cast<GLsizei>(w),
-                                          static_cast<GLsizei>(h)));
+            return;
         }
+
+        mStateCacheManager->setEnabled(GL_SCISSOR_TEST);
+
+        // If request texture flipping, use "upper-left", otherwise use "lower-left"
+        bool flipping = mActiveRenderTarget->requiresTextureFlipping();
+
+        //  GL measures from the bottom, not the top
+        long targetHeight = mActiveRenderTarget->getHeight();
+        long top = flipping ? rect.top : targetHeight - rect.bottom;
+        // NB GL uses width / height rather than right / bottom
+        OGRE_CHECK_GL_ERROR(glScissor(rect.left, top, rect.width(), rect.height()));
     }
 
     void GLES2RenderSystem::clearFrameBuffer(unsigned int buffers,
@@ -1595,19 +1496,14 @@ namespace Ogre {
             OGRE_CHECK_GL_ERROR(glClearStencil(stencil));
         }
 
-        // Should be enable scissor test due the clear region is
-        // relied on scissor box bounds.
-         mStateCacheManager->setEnabled(GL_SCISSOR_TEST);
-
-        // Sets the scissor box as same as viewport
-        GLint viewport[4];
-        mStateCacheManager->getViewport(viewport);
-        bool scissorBoxDifference =
-            viewport[0] != mScissorBox[0] || viewport[1] != mScissorBox[1] ||
-            viewport[2] != mScissorBox[2] || viewport[3] != mScissorBox[3];
-        if (scissorBoxDifference)
+        Rect vpRect = mActiveViewport->getActualDimensions();
+        bool needScissorBox =
+            vpRect != Rect(0, 0, mActiveRenderTarget->getWidth(), mActiveRenderTarget->getHeight());
+        if (needScissorBox)
         {
-            OGRE_CHECK_GL_ERROR(glScissor(viewport[0], viewport[1], viewport[2], viewport[3]));
+            // Should be enable scissor test due the clear region is
+            // relied on scissor box bounds.
+            setScissorTest(true, vpRect);
         }
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
@@ -1617,14 +1513,11 @@ namespace Ogre {
         // Clear buffers
         OGRE_CHECK_GL_ERROR(glClear(flags));
 
-        // Restore scissor box
-        if (scissorBoxDifference)
-        {
-            OGRE_CHECK_GL_ERROR(glScissor(mScissorBox[0], mScissorBox[1], mScissorBox[2], mScissorBox[3]));
-        }
-
         // Restore scissor test
-        mStateCacheManager->setDisabled(GL_SCISSOR_TEST);
+        if (needScissorBox)
+        {
+            setScissorTest(false);
+        }
 
         // Reset buffer write state
         if (!mStateCacheManager->getDepthMask() && (buffers & FBT_DEPTH))
@@ -1968,59 +1861,8 @@ namespace Ogre {
 
         if (mask & (uint16)GPV_GLOBAL)
         {
-            // Just copy
-            params->_copySharedParams();
-            program->updateUniformBlocks();
+            params->_updateSharedParams();
         }
-    }
-
-    void GLES2RenderSystem::registerThread()
-    {
-        OGRE_LOCK_MUTEX(mThreadInitMutex);
-        // This is only valid once we've created the main context
-        if (!mMainContext)
-        {
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
-                        "Cannot register a background thread before the main context "
-                        "has been created.",
-                        "GLES2RenderSystem::registerThread");
-        }
-
-        // Create a new context for this thread. Cloning from the main context
-        // will ensure that resources are shared with the main context
-        // We want a separate context so that we can safely create GL
-        // objects in parallel with the main thread
-        GLContext* newContext = mMainContext->clone();
-        mBackgroundContextList.push_back(newContext);
-
-        // Bind this new context to this thread.
-        newContext->setCurrent();
-
-        _oneTimeContextInitialization();
-        newContext->setInitialized();
-    }
-
-    void GLES2RenderSystem::unregisterThread()
-    {
-        // nothing to do here?
-        // Don't need to worry about active context, just make sure we delete
-        // on shutdown.
-    }
-
-    void GLES2RenderSystem::preExtraThreadsStarted()
-    {
-        OGRE_LOCK_MUTEX(mThreadInitMutex);
-        // free context, we'll need this to share lists
-        if(mCurrentContext)
-            mCurrentContext->endCurrent();
-    }
-
-    void GLES2RenderSystem::postExtraThreadsStarted()
-    {
-        OGRE_LOCK_MUTEX(mThreadInitMutex);
-        // reacquire context
-        if(mCurrentContext)
-            mCurrentContext->setCurrent();
     }
 
     unsigned int GLES2RenderSystem::getDisplayMonitorCount() const

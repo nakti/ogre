@@ -70,6 +70,8 @@ extern "C" void glFlushRenderAPPLE();
 
 namespace Ogre {
 
+    typedef TransformBase<4, float> Matrix4f;
+
     // Callback function used when registering GLGpuPrograms
     static GpuProgram* createGLArbGpuProgram(ResourceManager* creator,
                                       const String& name, ResourceHandle handle,
@@ -155,7 +157,6 @@ namespace Ogre {
         mFixedFunctionTextureUnits(0),
         mStencilWriteMask(0xFFFFFFFF),
         mDepthWrite(true),
-        mScissorsEnabled(false),
         mUseAutoTextureMatrix(false),
         mHardwareBufferManager(0),
         mGpuProgramManager(0),
@@ -179,8 +180,6 @@ namespace Ogre {
 
         initConfigOptions();
 
-        mColourWrite[0] = mColourWrite[1] = mColourWrite[2] = mColourWrite[3] = true;
-
         for (i = 0; i < OGRE_MAX_TEXTURE_LAYERS; i++)
         {
             // Dummy value
@@ -193,6 +192,7 @@ namespace Ogre {
         mMainContext = 0;
 
         mGLInitialised = false;
+        mEnableFixedPipeline = true;
 
         mCurrentLights = 0;
         mMinFilter = FO_LINEAR;
@@ -311,7 +311,7 @@ namespace Ogre {
         // Save previous modelview
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
-        glLoadMatrixf(mViewMatrix.transpose()[0]);
+        glLoadMatrixf(Matrix4f(mViewMatrix.transpose())[0]);
 
         for (const auto& ac : params->getAutoConstants())
         {
@@ -351,6 +351,19 @@ namespace Ogre {
         mTextureManager = new GLTextureManager(this);
     }
 
+    void GLRenderSystem::initConfigOptions()
+    {
+        GLRenderSystemCommon::initConfigOptions();
+
+        ConfigOption opt;
+        opt.name = "Fixed Pipeline Enabled";
+        opt.possibleValues = {"Yes", "No"};
+        opt.currentValue = opt.possibleValues[0];
+        opt.immutable = false;
+
+        mOptions[opt.name] = opt;
+    }
+
     RenderSystemCapabilities* GLRenderSystem::createRenderSystemCapabilities() const
     {
         RenderSystemCapabilities* rsc = new RenderSystemCapabilities();
@@ -374,8 +387,11 @@ namespace Ogre {
         else
             rsc->setVendor(GPU_UNKNOWN);
 
-        // Supports fixed-function
-        rsc->setCapability(RSC_FIXED_FUNCTION);
+        if (mEnableFixedPipeline)
+        {
+            // Supports fixed-function
+            rsc->setCapability(RSC_FIXED_FUNCTION);
+        }
 
         rsc->setCapability(RSC_AUTOMIPMAP_COMPRESSED);
 
@@ -954,13 +970,6 @@ namespace Ogre {
             caps->setNumMultiRenderTargets(1);
         }
 
-
-        Log* defaultLog = LogManager::getSingleton().getDefaultLog();
-        if (defaultLog)
-        {
-            caps->log(defaultLog);
-        }
-
         mGLInitialised = true;
     }
 
@@ -978,6 +987,14 @@ namespace Ogre {
             mGLSLProgramFactory = 0;
         }
 
+        // Delete extra threads contexts
+        for (auto pCurContext : mBackgroundContextList)
+        {
+            pCurContext->releaseContext();
+            OGRE_DELETE pCurContext;
+        }
+        mBackgroundContextList.clear();
+
         // Deleting the GPU program manager and hardware buffer manager.  Has to be done before the mGLSupport->stop().
         delete mGpuProgramManager;
         mGpuProgramManager = 0;
@@ -987,18 +1004,6 @@ namespace Ogre {
 
         delete mRTTManager;
         mRTTManager = 0;
-
-        // Delete extra threads contexts
-        for (GLContextList::iterator i = mBackgroundContextList.begin();
-             i != mBackgroundContextList.end(); ++i)
-        {
-            GLContext* pCurContext = *i;
-
-            pCurContext->releaseContext();
-
-            delete pCurContext;
-        }
-        mBackgroundContextList.clear();
 
         mGLSupport->stop();
         mStopRendering = true;
@@ -1096,6 +1101,12 @@ namespace Ogre {
             const char* shadingLangVersion = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
             StringVector tokens = StringUtil::split(shadingLangVersion, ". ");
             mNativeShadingLanguageVersion = (StringConverter::parseUnsignedInt(tokens[0]) * 100) + StringConverter::parseUnsignedInt(tokens[1]);
+
+            auto it = mOptions.find("Fixed Pipeline Enabled");
+            if (it != mOptions.end())
+            {
+                mEnableFixedPipeline = StringConverter::parseBool(it->second.currentValue);
+            }
 
             // Initialise GL after the first window has been created
             // TODO: fire this from emulation options, and don't duplicate Real and Current capabilities
@@ -1326,7 +1337,7 @@ namespace Ogre {
     {
         mWorldMatrix = m;
         glMatrixMode(GL_MODELVIEW);
-        glLoadMatrixf((mViewMatrix * mWorldMatrix).transpose()[0]);
+        glLoadMatrixf(Matrix4f((mViewMatrix * mWorldMatrix).transpose())[0]);
     }
 
     //-----------------------------------------------------------------------------
@@ -1334,7 +1345,7 @@ namespace Ogre {
     {
         mViewMatrix = m;
         glMatrixMode(GL_MODELVIEW);
-        glLoadMatrixf((mViewMatrix * mWorldMatrix).transpose()[0]);
+        glLoadMatrixf(Matrix4f((mViewMatrix * mWorldMatrix).transpose())[0]);
 
         // also mark clip planes dirty
         if (!mClipPlanes.empty())
@@ -1344,7 +1355,7 @@ namespace Ogre {
     void GLRenderSystem::setProjectionMatrix(const Matrix4 &m)
     {
         glMatrixMode(GL_PROJECTION);
-        glLoadMatrixf(m.transpose()[0]);
+        glLoadMatrixf(Matrix4f(m.transpose())[0]);
         glMatrixMode(GL_MODELVIEW);
 
         // also mark clip planes dirty
@@ -1744,7 +1755,7 @@ namespace Ogre {
         glMatrixMode(GL_TEXTURE);
 
         // Load this matrix in
-        glLoadMatrixf(xform.transpose()[0]);
+        glLoadMatrixf(Matrix4f(xform.transpose())[0]);
 
         if (mUseAutoTextureMatrix)
         {
@@ -1784,70 +1795,6 @@ namespace Ogre {
         return GL_ONE;
     }
     //-----------------------------------------------------------------------------
-    void GLRenderSystem::_setSeparateSceneBlending(
-        SceneBlendFactor sourceFactor, SceneBlendFactor destFactor,
-        SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha,
-        SceneBlendOperation op, SceneBlendOperation alphaOp )
-    {
-        GLint sourceBlend = getBlendMode(sourceFactor);
-        GLint destBlend = getBlendMode(destFactor);
-        GLint sourceBlendAlpha = getBlendMode(sourceFactorAlpha);
-        GLint destBlendAlpha = getBlendMode(destFactorAlpha);
-
-        if(sourceFactor == SBF_ONE && destFactor == SBF_ZERO &&
-           sourceFactorAlpha == SBF_ONE && destFactorAlpha == SBF_ZERO)
-        {
-            mStateCacheManager->setEnabled(GL_BLEND, false);
-        }
-        else
-        {
-            mStateCacheManager->setEnabled(GL_BLEND, true);
-            mStateCacheManager->setBlendFunc(sourceBlend, destBlend, sourceBlendAlpha, destBlendAlpha);
-        }
-
-        GLint func = GL_FUNC_ADD, alphaFunc = GL_FUNC_ADD;
-
-        switch(op)
-        {
-        case SBO_ADD:
-            func = GL_FUNC_ADD;
-            break;
-        case SBO_SUBTRACT:
-            func = GL_FUNC_SUBTRACT;
-            break;
-        case SBO_REVERSE_SUBTRACT:
-            func = GL_FUNC_REVERSE_SUBTRACT;
-            break;
-        case SBO_MIN:
-            func = GL_MIN;
-            break;
-        case SBO_MAX:
-            func = GL_MAX;
-            break;
-        }
-
-        switch(alphaOp)
-        {
-        case SBO_ADD:
-            alphaFunc = GL_FUNC_ADD;
-            break;
-        case SBO_SUBTRACT:
-            alphaFunc = GL_FUNC_SUBTRACT;
-            break;
-        case SBO_REVERSE_SUBTRACT:
-            alphaFunc = GL_FUNC_REVERSE_SUBTRACT;
-            break;
-        case SBO_MIN:
-            alphaFunc = GL_MIN;
-            break;
-        case SBO_MAX:
-            alphaFunc = GL_MAX;
-            break;
-        }
-
-        mStateCacheManager->setBlendEquation(func, alphaFunc);
-    }
-    //-----------------------------------------------------------------------------
     void GLRenderSystem::_setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage)
     {
         bool enable = func != CMPF_ALWAYS_PASS;
@@ -1881,50 +1828,24 @@ namespace Ogre {
             _setRenderTarget(target);
             mActiveViewport = vp;
 
-            GLsizei x, y, w, h;
-
             // Calculate the "lower-left" corner of the viewport
-            w = vp->getActualWidth();
-            h = vp->getActualHeight();
-            x = vp->getActualLeft();
-            y = vp->getActualTop();
+            Rect vpRect = vp->getActualDimensions();
             if (!target->requiresTextureFlipping())
             {
                 // Convert "upper-left" corner to "lower-left"
-                y = target->getHeight() - h - y;
+                std::swap(vpRect.top, vpRect.bottom);
+                vpRect.top = target->getHeight() - vpRect.top;
+                vpRect.bottom = target->getHeight() - vpRect.bottom;
             }
-            mStateCacheManager->setViewport(x, y, w, h);
-
-            // Configure the viewport clipping
-            glScissor(x, y, w, h);
-            mScissorBox[0] = x;
-            mScissorBox[1] = y;
-            mScissorBox[2] = w;
-            mScissorBox[3] = h;
+            mStateCacheManager->setViewport(vpRect);
 
             vp->_clearUpdatedFlag();
         }
     }
 
     //-----------------------------------------------------------------------------
-    void GLRenderSystem::_beginFrame(void)
-    {
-        if (!mActiveViewport)
-            OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
-                        "Cannot begin frame - no viewport selected.",
-                        "GLRenderSystem::_beginFrame");
-
-        // Activate the viewport clipping
-        mScissorsEnabled = true;
-        mStateCacheManager->setEnabled(GL_SCISSOR_TEST, true);
-    }
-
-    //-----------------------------------------------------------------------------
     void GLRenderSystem::_endFrame(void)
     {
-        // Deactivate the viewport clipping.
-        mScissorsEnabled = false;
-        mStateCacheManager->setEnabled(GL_SCISSOR_TEST, false);
         // unbind GPU programs at end of frame
         // this is mostly to avoid holding bound programs that might get deleted
         // outside via the resource manager
@@ -2022,14 +1943,42 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------------
-    void GLRenderSystem::_setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha)
+    static GLenum getBlendOp(SceneBlendOperation op)
     {
-        mStateCacheManager->setColourMask(red, green, blue, alpha);
+        switch (op)
+        {
+        case SBO_ADD:
+            return GL_FUNC_ADD;
+        case SBO_SUBTRACT:
+            return GL_FUNC_SUBTRACT;
+        case SBO_REVERSE_SUBTRACT:
+            return GL_FUNC_REVERSE_SUBTRACT;
+        case SBO_MIN:
+            return GL_MIN;
+        case SBO_MAX:
+            return GL_MAX;
+        }
+        return GL_FUNC_ADD;
+    }
+    void GLRenderSystem::setColourBlendState(const ColourBlendState& state)
+    {
         // record this
-        mColourWrite[0] = red;
-        mColourWrite[1] = green;
-        mColourWrite[2] = blue;
-        mColourWrite[3] = alpha;
+        mCurrentBlend = state;
+
+        if (state.blendingEnabled())
+        {
+            mStateCacheManager->setEnabled(GL_BLEND, true);
+            mStateCacheManager->setBlendFunc(
+                getBlendMode(state.sourceFactor), getBlendMode(state.destFactor),
+                getBlendMode(state.sourceFactorAlpha), getBlendMode(state.destFactorAlpha));
+        }
+        else
+        {
+            mStateCacheManager->setEnabled(GL_BLEND, false);
+        }
+
+        mStateCacheManager->setBlendEquation(getBlendOp(state.operation), getBlendOp(state.alphaOperation));
+        mStateCacheManager->setColourMask(state.writeR, state.writeG, state.writeB, state.writeA);
     }
     //-----------------------------------------------------------------------------
     void GLRenderSystem::setLightingEnabled(bool enabled)
@@ -2530,7 +2479,7 @@ namespace Ogre {
         GLint primType;
         int operationType = op.operationType;
         // Use adjacency if there is a geometry program and it requested adjacency info
-        if(mGeometryProgramBound && mCurrentGeometryProgram && mCurrentGeometryProgram->isAdjacencyInfoRequired())
+        if(mGeometryProgramBound && mCurrentGeometryProgram && dynamic_cast<GpuProgram*>(mCurrentGeometryProgram)->isAdjacencyInfoRequired())
             operationType |= RenderOperation::OT_DETAIL_ADJACENCY_BIT;
         switch (operationType)
         {
@@ -2676,7 +2625,7 @@ namespace Ogre {
                         "GLRenderSystem::bindGpuProgram");
         }
 
-        GLGpuProgram* glprg = static_cast<GLGpuProgram*>(prg);
+        GLGpuProgramBase* glprg = dynamic_cast<GLGpuProgramBase*>(prg);
 
         // Unbind previous gpu program first.
         //
@@ -2695,7 +2644,7 @@ namespace Ogre {
         //     itself, if type is changing (during load/unload, etc), and it's inuse,
         //     unbind and notify render system to correct for its state.
         //
-        switch (glprg->getType())
+        switch (prg->getType())
         {
         case GPT_VERTEX_PROGRAM:
             if (mCurrentVertexProgram != glprg)
@@ -2843,57 +2792,27 @@ namespace Ogre {
         glPopMatrix();
     }
     //---------------------------------------------------------------------
-    void GLRenderSystem::setScissorTest(bool enabled, size_t left,
-                                        size_t top, size_t right, size_t bottom)
+    void GLRenderSystem::setScissorTest(bool enabled, const Rect& rect)
     {
-        mScissorsEnabled = enabled;
+        mStateCacheManager->setEnabled(GL_SCISSOR_TEST, enabled);
+
+        if (!enabled)
+            return;
+
         // If request texture flipping, use "upper-left", otherwise use "lower-left"
         bool flipping = mActiveRenderTarget->requiresTextureFlipping();
         //  GL measures from the bottom, not the top
-        size_t targetHeight = mActiveRenderTarget->getHeight();
-        // Calculate the "lower-left" corner of the viewport
-        GLsizei x = 0, y = 0, w = 0, h = 0;
-
-        if (enabled)
-        {
-            mStateCacheManager->setEnabled(GL_SCISSOR_TEST, true);
-            // NB GL uses width / height rather than right / bottom
-            x = left;
-            if (flipping)
-                y = top;
-            else
-                y = targetHeight - bottom;
-            w = right - left;
-            h = bottom - top;
-            glScissor(x, y, w, h);
-            mScissorBox[0] = x;
-            mScissorBox[1] = y;
-            mScissorBox[2] = w;
-            mScissorBox[3] = h;
-        }
-        else
-        {
-            // GL requires you to reset the scissor when disabling
-            w = mActiveViewport->getActualWidth();
-            h = mActiveViewport->getActualHeight();
-            x = mActiveViewport->getActualLeft();
-            if (flipping)
-                y = mActiveViewport->getActualTop();
-            else
-                y = targetHeight - mActiveViewport->getActualTop() - h;
-            glScissor(x, y, w, h);
-            mScissorBox[0] = x;
-            mScissorBox[1] = y;
-            mScissorBox[2] = w;
-            mScissorBox[3] = h;
-        }
+        long targetHeight = mActiveRenderTarget->getHeight();
+        long top = flipping ? rect.top : targetHeight - rect.bottom;
+        // NB GL uses width / height rather than right / bottom
+        glScissor(rect.left, top, rect.width(), rect.height());
     }
     //---------------------------------------------------------------------
     void GLRenderSystem::clearFrameBuffer(unsigned int buffers,
                                           const ColourValue& colour, Real depth, unsigned short stencil)
     {
-        bool colourMask = !mColourWrite[0] || !mColourWrite[1]
-            || !mColourWrite[2] || !mColourWrite[3];
+        bool colourMask =
+            !(mCurrentBlend.writeR && mCurrentBlend.writeG && mCurrentBlend.writeB && mCurrentBlend.writeA);
 
         if(mCurrentContext)
 			mCurrentContext->setCurrent();
@@ -2928,37 +2847,23 @@ namespace Ogre {
             glClearStencil(stencil);
         }
 
-        // Should be enable scissor test due the clear region is
-        // relied on scissor box bounds.
-        if (!mScissorsEnabled)
+        Rect vpRect = mActiveViewport->getActualDimensions();
+        bool needScissorBox =
+            vpRect != Rect(0, 0, mActiveRenderTarget->getWidth(), mActiveRenderTarget->getHeight());
+        if (needScissorBox)
         {
-            mStateCacheManager->setEnabled(GL_SCISSOR_TEST, true);
-        }
-
-        // Sets the scissor box as same as viewport
-        GLint viewport[4];
-        mStateCacheManager->getViewport(viewport);
-        bool scissorBoxDifference =
-            viewport[0] != mScissorBox[0] || viewport[1] != mScissorBox[1] ||
-            viewport[2] != mScissorBox[2] || viewport[3] != mScissorBox[3];
-        if (scissorBoxDifference)
-        {
-            glScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
+            // Should be enable scissor test due the clear region is
+            // relied on scissor box bounds.
+            setScissorTest(true, vpRect);
         }
 
         // Clear buffers
         glClear(flags);
 
-        // Restore scissor box
-        if (scissorBoxDifference)
-        {
-            glScissor(mScissorBox[0], mScissorBox[1], mScissorBox[2], mScissorBox[3]);
-        }
-
         // Restore scissor test
-        if (!mScissorsEnabled)
+        if (needScissorBox)
         {
-           mStateCacheManager->setEnabled(GL_SCISSOR_TEST, false);
+            setScissorTest(false);
         }
 
         // Reset buffer write state
@@ -2968,7 +2873,8 @@ namespace Ogre {
         }
         if (colourMask && (buffers & FBT_COLOUR))
         {
-            mStateCacheManager->setColourMask(mColourWrite[0], mColourWrite[1], mColourWrite[2], mColourWrite[3]);
+            mStateCacheManager->setColourMask(mCurrentBlend.writeR, mCurrentBlend.writeG,
+                                              mCurrentBlend.writeB, mCurrentBlend.writeA);
         }
         if (buffers & FBT_STENCIL)
         {
@@ -3067,7 +2973,8 @@ namespace Ogre {
         // clearFrameBuffer would be wrong because the value we are recorded may be
         // difference with the really state stored in GL context.
         mStateCacheManager->setDepthMask(mDepthWrite);
-        mStateCacheManager->setColourMask(mColourWrite[0], mColourWrite[1], mColourWrite[2], mColourWrite[3]);
+        mStateCacheManager->setColourMask(mCurrentBlend.writeR, mCurrentBlend.writeG,
+                                          mCurrentBlend.writeB, mCurrentBlend.writeA);
         mStateCacheManager->setStencilMask(mStencilWriteMask);
 
     }
@@ -3131,59 +3038,6 @@ namespace Ogre {
         }
     }
     //---------------------------------------------------------------------
-    void GLRenderSystem::registerThread()
-    {
-        OGRE_LOCK_MUTEX(mThreadInitMutex);
-        // This is only valid once we've created the main context
-        if (!mMainContext)
-        {
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
-                        "Cannot register a background thread before the main context "
-                        "has been created.",
-                        "GLRenderSystem::registerThread");
-        }
-
-        // Create a new context for this thread. Cloning from the main context
-        // will ensure that resources are shared with the main context
-        // We want a separate context so that we can safely create GL
-        // objects in parallel with the main thread
-        GLContext* newContext = mMainContext->clone();
-        mBackgroundContextList.push_back(newContext);
-
-        // Bind this new context to this thread.
-        newContext->setCurrent();
-
-        _oneTimeContextInitialization();
-        newContext->setInitialized();
-
-
-    }
-    //---------------------------------------------------------------------
-    void GLRenderSystem::unregisterThread()
-    {
-        // nothing to do here?
-        // Don't need to worry about active context, just make sure we delete
-        // on shutdown.
-
-    }
-    //---------------------------------------------------------------------
-    void GLRenderSystem::preExtraThreadsStarted()
-    {
-        OGRE_LOCK_MUTEX(mThreadInitMutex);
-        // free context, we'll need this to share lists
-        if(mCurrentContext)
-            mCurrentContext->endCurrent();
-    }
-    //---------------------------------------------------------------------
-    void GLRenderSystem::postExtraThreadsStarted()
-    {
-        OGRE_LOCK_MUTEX(mThreadInitMutex);
-        // reacquire context
-        if(mCurrentContext)
-            mCurrentContext->setCurrent();
-    }
-
-    //---------------------------------------------------------------------
     unsigned int GLRenderSystem::getDisplayMonitorCount() const
     {
         return mGLSupport->getDisplayMonitorCount();
@@ -3234,7 +3088,7 @@ namespace Ogre {
         bool isCustomAttrib = false;
         if (mCurrentVertexProgram)
         {
-            isCustomAttrib = mCurrentVertexProgram->isAttributeValid(sem, elem.getIndex());
+            isCustomAttrib = !mEnableFixedPipeline || mCurrentVertexProgram->isAttributeValid(sem, elem.getIndex());
 
             if (hwGlBuffer->isInstanceData())
             {

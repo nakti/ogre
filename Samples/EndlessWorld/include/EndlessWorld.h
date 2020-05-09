@@ -72,15 +72,6 @@ public:
 			"cursor and access widgets. Use WASD keys to move. You can increase/decrease terrains' LOD level using Page Up/Page Down."
 			"Use C to generate another random terrain";
 	}
-
-    void testCapabilities(const RenderSystemCapabilities* caps)
-	{
-        if (!caps->hasCapability(RSC_VERTEX_PROGRAM) || !caps->hasCapability(RSC_FRAGMENT_PROGRAM))
-        {
-			OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your graphics card does not support vertex or fragment shaders, "
-                        "so you cannot run this sample. Sorry!", "Sample_EndlessWorld::testCapabilities");
-        }
-	}
     
 	StringVector getRequiredPlugins()
 	{
@@ -313,16 +304,10 @@ protected:
 		defaultimp.minBatchSize = 33;
 		defaultimp.maxBatchSize = 65;
 		// textures
-		defaultimp.layerList.resize(3);
-		defaultimp.layerList[0].worldSize = 100;
-		defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_diffusespecular.dds");
-		defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_normalheight.dds");
-		defaultimp.layerList[1].worldSize = 30;
-		defaultimp.layerList[1].textureNames.push_back("grass_green-01_diffusespecular.dds");
-		defaultimp.layerList[1].textureNames.push_back("grass_green-01_normalheight.dds");
-		defaultimp.layerList[2].worldSize = 200;
-		defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_diffusespecular.dds");
-		defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_normalheight.dds");
+		defaultimp.layerList.resize(1);
+		defaultimp.layerList[0].worldSize = 200;
+		defaultimp.layerList[0].textureNames.push_back("Ground37_diffspec.dds");
+		defaultimp.layerList[0].textureNames.push_back("Ground37_normheight.dds");
 	}
 
 	/*-----------------------------------------------------------------------------
@@ -405,14 +390,14 @@ protected:
 
 		LogManager::getSingleton().setLogDetail(LL_BOREME);
 
-		Vector3 lightdir(0.55, -0.3, 0.75);
-		lightdir.normalise();
-
 		Light* l = mSceneMgr->createLight("tstLight");
 		l->setType(Light::LT_DIRECTIONAL);
-		l->setDirection(lightdir);
 		l->setDiffuseColour(ColourValue::White);
 		l->setSpecularColour(ColourValue(0.4, 0.4, 0.4));
+
+	    auto ln = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+	    ln->setDirection(Vector3(0.55, -0.3, 0.75).normalisedCopy());
+	    ln->attachObject(l);
 
 		mSceneMgr->setAmbientLight(ColourValue(0.2, 0.2, 0.2));
 

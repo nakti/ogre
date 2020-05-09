@@ -183,7 +183,7 @@ namespace Ogre {
                 if (mMinBufferSize > mMaxBufferSize) mMinBufferSize = mMaxBufferSize;
             }
 
-            if((opt = miscParams->find("MSAA")) != end)
+            if((opt = miscParams->find("FSAA")) != end)
             {
                 mMSAA = Ogre::StringConverter::parseInt(opt->second);
             }
@@ -227,7 +227,7 @@ namespace Ogre {
             mHwGamma = false;
         }
         
-        mContext = createEGLContext();
+        mContext = createEGLContext(eglContext);
         mContext->setCurrent();
         EMSCRIPTEN_RESULT result = emscripten_set_canvas_element_size(mCanvasSelector.c_str(), width, height);
         
@@ -268,7 +268,7 @@ namespace Ogre {
         mContext->setCurrent();
         
         static_cast<GLRenderSystemCommon*>(Root::getSingleton().getRenderSystem())->notifyOnContextLost();
-        mContext->_destroyInternalResources();
+        static_cast<EGLContext*>(mContext)->_destroyInternalResources();
         
         eglDestroySurface(mEglDisplay, mEglSurface);
         EGL_CHECK_ERROR
@@ -375,7 +375,7 @@ namespace Ogre {
             mVisible = true;
             mClosed = false;
             
-            mContext->_createInternalResources(mEglDisplay, mEglConfig, mEglSurface, nullptr);
+            static_cast<EGLContext*>(mContext)->_createInternalResources(mEglDisplay, mEglConfig, mEglSurface, nullptr);
             
             static_cast<GLRenderSystemCommon*>(Ogre::Root::getSingleton().getRenderSystem())->resetRenderer(this);
         }

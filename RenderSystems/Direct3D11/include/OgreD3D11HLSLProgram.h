@@ -64,13 +64,6 @@ namespace Ogre {
             String doGet(const void* target) const;
             void doSet(void* target, const String& val);
         };
-        /// Command object for setting macro defines
-        class CmdPreprocessorDefines : public ParamCommand
-        {
-        public:
-            String doGet(const void* target) const;
-            void doSet(void* target, const String& val);
-        };
         /// Command object for setting matrix packing in column-major order
         class CmdColumnMajorMatrices : public ParamCommand
         {
@@ -90,16 +83,14 @@ namespace Ogre {
 
         static CmdEntryPoint msCmdEntryPoint;
         static CmdTarget msCmdTarget;
-        static CmdPreprocessorDefines msCmdPreprocessorDefines;
         static CmdColumnMajorMatrices msCmdColumnMajorMatrices;
         static CmdEnableBackwardsCompatibility msCmdEnableBackwardsCompatibility;
         
         void notifyDeviceLost(D3D11Device* device);
         void notifyDeviceRestored(D3D11Device* device);
 
-        /** Internal method for creating an appropriate low-level program from this
-        high-level program, must be implemented by subclasses. */
-        void createLowLevelImpl(void);
+        /// noop
+        void createLowLevelImpl(void) {}
         /// Internal unload implementation, must be implemented by subclasses
         void unloadHighLevelImpl(void);
         /// Populate the passed parameters with name->index map, must be overridden
@@ -346,9 +337,14 @@ namespace Ogre {
         void CreateHullShader();
         void CreateComputeShader();
 
+        /// shortcut as we there is no low-level separation here
+        GpuProgram* _getBindingDelegate(void) { return this; }
+
         /** Internal load implementation, must be implemented by subclasses.
         */
         void loadFromSource(void);
+
+        void prepareImpl();
 
         void reinterpretGSForStreamOut(void);
         bool mReinterpretingGS;

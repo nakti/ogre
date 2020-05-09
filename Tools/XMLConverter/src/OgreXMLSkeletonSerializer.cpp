@@ -114,12 +114,18 @@ namespace Ogre {
         
         Quaternion quat ;
 
+        int max_id = -1;
+
         for (pugi::xml_node& bonElem : mBonesNode.children())
         {
             String name = bonElem.attribute("name").value();
             int id = StringConverter::parseInt(bonElem.attribute("id").value());
             skel->createBone(name,id) ;
+
+            max_id = std::max(id, max_id);
         }
+
+        OgreAssert(size_t(max_id + 1) == skel->getBones().size(), "Bone ids must be consecutive in range [0; N)");
     }
     // ---------------------------------------------------------
     // set positions and orientations.
@@ -403,15 +409,12 @@ namespace Ogre {
         }
 
         // Write links
-        Skeleton::LinkedSkeletonAnimSourceIterator linkIt = 
-            pSkeleton->getLinkedSkeletonAnimationSourceIterator();
-        if (linkIt.hasMoreElements())
+        if (!pSkeleton->getLinkedSkeletonAnimationSources().empty())
         {
             LogManager::getSingleton().logMessage("Exporting animation links.");
             pugi::xml_node linksNode = rootNode.append_child("animationlinks");
-            while(linkIt.hasMoreElements())
+            for(const auto& link : pSkeleton->getLinkedSkeletonAnimationSources())
             {
-                const LinkedSkeletonAnimationSource& link = linkIt.getNext();
                 writeSkeletonAnimationLink(linksNode, link);
             }
         }

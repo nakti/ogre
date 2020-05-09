@@ -6,6 +6,7 @@ services:
 branches:
   only:
     - master
+    - /^v\d+\.\d+\.\d+$/
 addons:
   apt:
     sources:
@@ -23,13 +24,17 @@ addons:
     - libgl1-mesa-dev
     - libglu1-mesa-dev # legacy GL RenderSystem only
     - python3-dev
-    - python3-lxml     # for validate script
+    - python3-lxml     # for xml validation script
     - nvidia-cg-dev
     - libpugixml-dev
     - swig3.0
+    - doxygen
+    - graphviz
+    - mono-mcs # compile C# bindings
+    - qtbase5-dev # QtOgreBites
 before_script:
     - if [ "$TRAVIS_OS_NAME" =   "osx" ]; then brew update && brew install freetype libzzip sdl2 pugixml ; fi
-osx_image: xcode10.1
+osx_image: xcode11.3
 env:
     - TEST=TRUE
     - GL3ES=TRUE # build GL3Plus and GLES2 Rendersystems
@@ -61,7 +66,10 @@ script:
     # run unit tests
     - if [ $TEST ]; then build/bin/Test_Ogre ; fi
     - if [ "$TRAVIS_OS_NAME" == "osx" -a "$IOS" != "TRUE" ]; then build/bin/Debug/Test_Ogre.app/Contents/MacOS/Test_Ogre ; fi
-    # XMLConverter works & validates
+    # doxygen warnings check
+    - if [ "$TRAVIS_OS_NAME" = "linux" -a "ANDROID" != "TRUE" ]; then echo HAVE_DOT = NO >> build/html.cfg ; fi
+    - if [ "$TRAVIS_OS_NAME" = "linux" -a "ANDROID" != "TRUE" ]; then cmake --build build --target OgreDoc > /dev/null && cat build/doxygen_warnings.log ; fi
+    # - if [ "$TRAVIS_OS_NAME" = "linux" -a "ANDROID" != "TRUE" ]; then test ! -s build/doxygen_warnings.log ; fi    # XMLConverter works & validates
     - if [ $TEST ]; then build/bin/OgreXMLConverter Samples/Media/models/jaiqua.mesh && build/bin/OgreXMLConverter Samples/Media/models/jaiqua.skeleton ; fi
     - if [ $TEST ]; then python3 Tools/XMLConverter/docs/validate.py Samples/Media/models/jaiqua.mesh.xml ; fi
     # run visual tests
@@ -84,4 +92,5 @@ deploy:
     skip_cleanup: true
     file: $TRAVIS_BUILD_DIR/Other/bintray.json
     on:
-      condition: $ANDROID
+      condition: $ANDROID && ($TRAVIS_BRANCH == "master" || -n $TRAVIS_TAG)
+      all_branches: true

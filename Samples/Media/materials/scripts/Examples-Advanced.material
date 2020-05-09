@@ -66,7 +66,7 @@ fragment_program Ogre/CelShadingFPGLSLES glsles
 	profiles glsles
 }
 
-
+//! [celshading_vp]
 vertex_program Ogre/CelShadingVPGLSL glsl
 {
 	source Example_CelShadingVp.glsl
@@ -80,6 +80,7 @@ vertex_program Ogre/CelShadingVPGLSL glsl
 		param_named shininess float 10 
 	}
 }
+//! [celshading_vp]
 
 fragment_program Ogre/CelShadingFPGLSL glsl
 {
@@ -161,11 +162,11 @@ material Examples/CelShading
 //------------------------
 
 // Bump map vertex program, support for this is required
-vertex_program Examples/BumpMapVPCg cg
+vertex_program Examples/BumpMapVPHLSL hlsl
 {
 	source Example_BumpMapping.cg
 	entry_point main_vp
-	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
+	target vs_2_0
 }
 
 vertex_program Examples/BumpMapVPGLSLES glsles
@@ -182,7 +183,7 @@ vertex_program Examples/BumpMapVP unified
 {
 	delegate Examples/BumpMapVPGLSL
 	delegate Examples/BumpMapVPGLSLES
-	delegate Examples/BumpMapVPCg
+	delegate Examples/BumpMapVPHLSL
 }
 
 // Bump map vertex program, with tangent parity support for this is required
@@ -214,11 +215,11 @@ vertex_program Examples/BumpMapVPTangentParity unified
 }
 
 // Bump map fragment program, support for this is optional
-fragment_program Examples/BumpMapFPCg cg
+fragment_program Examples/BumpMapFPHLSL hlsl
 {
 	source Example_BumpMapping.cg
 	entry_point main_fp
-	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1 fp20
+	target ps_2_0
 }
 
 fragment_program Examples/BumpMapFPGLSLES glsles
@@ -245,7 +246,7 @@ fragment_program Examples/BumpMapFP unified
 {
 	delegate Examples/BumpMapFPGLSL
 	delegate Examples/BumpMapFPGLSLES
-	delegate Examples/BumpMapFPCg
+	delegate Examples/BumpMapFPHLSL
 }
 
 // Bump map vertex program shadow receiver
@@ -313,11 +314,11 @@ fragment_program Examples/BumpMapFPShadowRcv unified
 }
 
 // Bump map with specular vertex program, support for this is required
-vertex_program Examples/BumpMapVPSpecularCg cg
+vertex_program Examples/BumpMapVPSpecularHLSL hlsl
 {
 	source Example_BumpMapping.cg
 	entry_point specular_vp
-	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
+	target vs_2_0
 }
 
 // Bump map with specular vertex program, support for this is required
@@ -335,15 +336,15 @@ vertex_program Examples/BumpMapVPSpecular unified
 {
 	delegate Examples/BumpMapVPSpecularGLSL
 	delegate Examples/BumpMapVPSpecularGLSLES
-	delegate Examples/BumpMapVPSpecularCg
+	delegate Examples/BumpMapVPSpecularHLSL
 }
 
 // Bump map fragment program, support for this is optional
-fragment_program Examples/BumpMapFPSpecularCg cg
+fragment_program Examples/BumpMapFPSpecularHLSL hlsl
 {
 	source Example_BumpMapping.cg
 	entry_point specular_fp
-	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1 fp20
+	target ps_2_0
 }
 
 // Bump map fragment program, support for this is optional
@@ -371,7 +372,7 @@ fragment_program Examples/BumpMapFPSpecular unified
 {
 	delegate Examples/BumpMapFPSpecularGLSL
 	delegate Examples/BumpMapFPSpecularGLSLES
-	delegate Examples/BumpMapFPSpecularCg
+	delegate Examples/BumpMapFPSpecularHLSL
 }
 
 //![normal_map_multipass]
@@ -564,11 +565,11 @@ material Examples/GeneralTexProjection
 // Distortion effects
 //----------------------------
 
-vertex_program Examples/FresnelRefractReflectVPCg cg
+vertex_program Examples/FresnelRefractReflectVPCg hlsl
 {
 	source Example_Fresnel.cg
 	entry_point main_vp
-	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
+	target vs_2_0
 }
 vertex_program Examples/FresnelRefractReflectVPGLSLES glsles
 {
@@ -586,12 +587,12 @@ vertex_program Examples/FresnelRefractReflectVP unified
 	delegate Examples/FresnelRefractReflectVPCg
 }
 
-fragment_program Examples/FresnelRefractReflectFPCg cg
+fragment_program Examples/FresnelRefractReflectFPCg hlsl
 {
 	source Example_Fresnel.cg
 	entry_point main_fp
 	// sorry, ps_1_1 and fp20 can't do this
-	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1
+	target ps_2_0
 }
 
 fragment_program Examples/FresnelRefractReflectFPGLSLES glsles
@@ -809,6 +810,7 @@ vertex_program Examples/TextureArrayVSglsles glsles
 fragment_program Examples/TextureArrayPSglsles glsles
 {
 	source Example_TextureArrayPS.glsles
+	syntax glsl300es
 
 	default_params
 	{

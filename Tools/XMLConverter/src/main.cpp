@@ -34,11 +34,8 @@ THE SOFTWARE.
 #include "OgreSkeletonSerializer.h"
 #include "OgreXMLPrerequisites.h"
 #include "OgreDefaultHardwareBufferManager.h"
-#include "OgreMeshLodGenerator.h"
-#include "OgreDistanceLodStrategy.h"
 #include "OgreLodStrategyManager.h"
 #include <iostream>
-#include <sys/stat.h>
 
 using namespace std;
 using namespace Ogre;
@@ -55,27 +52,12 @@ struct XmlOptions
     String sourceExt;
     String destExt;
     String logFile;
-    //bool interactiveMode; // Deprecated
-    //unsigned short numLods; // Deprecated
-    //Real lodValue; // Deprecated
-    //String lodStrategy; // Deprecated
-    //Real lodPercent; // Deprecated
-    //size_t lodFixed; // Deprecated
     size_t nuextremityPoints;
     size_t mergeTexcoordResult;
     size_t mergeTexcoordToDestroy;
-    bool usePercent;
-    //bool generateEdgeLists; // Deprecated
-    //bool generateTangents; // Deprecated
-    VertexElementSemantic tangentSemantic;
-    bool tangentUseParity;
-    bool tangentSplitMirrored;
-    bool tangentSplitRotated;
-    bool reorganiseBuffers;
     bool optimiseAnimations;
     bool quietMode;
-    bool d3d;
-    bool gl;
+    VertexElementType colourElementType;
     Serializer::Endian endian;
 };
 
@@ -121,25 +103,18 @@ XmlOptions parseArgs(int numArgs, char **args)
 {
     XmlOptions opts;
 
-    //opts.interactiveMode = false;
-    //opts.lodValue = 250000;
-    //opts.lodFixed = 0;
-    //opts.lodPercent = 20;
-    //opts.numLods = 0;
     opts.nuextremityPoints = 0;
     opts.mergeTexcoordResult = 0;
     opts.mergeTexcoordToDestroy = 0;
-    opts.usePercent = true;
-    //opts.generateEdgeLists = true;
-    //opts.generateTangents = false;
-    //opts.tangentSemantic = VES_TANGENT;
-    //opts.tangentUseParity = false;
-    //opts.tangentSplitMirrored = false;
-    //opts.tangentSplitRotated = false;
-    //opts.reorganiseBuffers = true;
     opts.optimiseAnimations = true;
     opts.quietMode = false;
     opts.endian = Serializer::ENDIAN_NATIVE;
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+    opts.colourElementType = VET_COLOUR_ARGB;
+#else
+    opts.colourElementType = VET_COLOUR_ABGR;
+#endif
 
     // ignore program name
     char* source = 0;
@@ -149,27 +124,15 @@ XmlOptions parseArgs(int numArgs, char **args)
     UnaryOptionList unOpt;
     BinaryOptionList binOpt;
 
-    //unOpt["-i"] = false;
-    //unOpt["-e"] = false;
-    unOpt["-r"] = false;
-    //unOpt["-t"] = false;
-    unOpt["-tm"] = false;
-    unOpt["-tr"] = false;
     unOpt["-o"] = false;
     unOpt["-q"] = false;
     unOpt["-d3d"] = false;
     unOpt["-gl"] = false;
     unOpt["-h"] = false;
     unOpt["-v"] = false;
-    //binOpt["-l"] = "";
-    //binOpt["-s"] = "Distance";
-    //binOpt["-p"] = "";
-    //binOpt["-f"] = "";
     binOpt["-E"] = "";
     binOpt["-x"] = "";
     binOpt["-log"] = "OgreXMLConverter.log";
-    binOpt["-td"] = "";
-    binOpt["-ts"] = "";
     binOpt["-merge"] = "0,0";
 
     int startIndex = findCommandLineOpts(numArgs, args, unOpt, binOpt);
@@ -256,17 +219,14 @@ XmlOptions parseArgs(int numArgs, char **args)
                 opts.endian = Serializer::ENDIAN_NATIVE;
         }
 
-        ui = unOpt.find("-d3d");
-        if (ui->second)
+        if (unOpt.find("-d3d")->second)
         {
-            opts.d3d = true;
+            opts.colourElementType = VET_COLOUR_ARGB;
         }
 
-        ui = unOpt.find("-gl");
-        if (ui->second)
+        if (unOpt.find("-gl")->second)
         {
-            opts.gl = true;
-            opts.d3d = false;
+            opts.colourElementType = VET_COLOUR_ABGR;
         }
 
     // Source / dest
@@ -326,10 +286,6 @@ XmlOptions parseArgs(int numArgs, char **args)
             cout << "log file         = " << opts.logFile << endl;
         if (opts.nuextremityPoints)
             cout << "Generate extremes per submesh = " << opts.nuextremityPoints << endl;
-        cout << " semantic = " << (opts.tangentSemantic == VES_TANGENT? "TANGENT" : "TEXCOORD") << endl;
-        cout << " parity = " << opts.tangentUseParity << endl;
-        cout << " split mirror = " << opts.tangentSplitMirrored << endl;
-        cout << " split rotated = " << opts.tangentSplitRotated << endl;
         
         cout << "-- END OPTIONS --" << endl;
         cout << endl;
@@ -400,60 +356,8 @@ void XMLToBinary(XmlOptions opts)
     {
         MeshPtr newMesh = MeshManager::getSingleton().createManual("conversion", 
             ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-        VertexElementType colourElementType;
-        if (opts.d3d)
-            colourElementType = VET_COLOUR_ARGB;
-        else
-            colourElementType = VET_COLOUR_ABGR;
 
-        xmlMeshSerializer->importMesh(opts.source, colourElementType, newMesh.get());
-
-        // Re-jig the buffers?
-        // Make sure animation types are up to date first
-        newMesh->_determineAnimationTypes();
-        if (opts.reorganiseBuffers)
-        {
-            logMgr->logMessage("Reorganising vertex buffers to automatic layout...");
-            // Shared geometry
-            if (newMesh->sharedVertexData)
-            {
-                // Automatic
-                VertexDeclaration* newDcl = 
-                    newMesh->sharedVertexData->vertexDeclaration->getAutoOrganisedDeclaration(
-                        newMesh->hasSkeleton(), newMesh->hasVertexAnimation(), newMesh->getSharedVertexDataAnimationIncludesNormals());
-                if (*newDcl != *(newMesh->sharedVertexData->vertexDeclaration))
-                {
-                    // Usages don't matter here since we're onlly exporting
-                    BufferUsageList bufferUsages;
-                    for (size_t u = 0; u <= newDcl->getMaxSource(); ++u)
-                        bufferUsages.push_back(HardwareBuffer::HBU_STATIC_WRITE_ONLY);
-                    newMesh->sharedVertexData->reorganiseBuffers(newDcl, bufferUsages);
-                }
-            }
-            // Dedicated geometry
-            for (size_t i = 0; i < newMesh->getNumSubMeshes(); i++)
-            {
-                SubMesh* sm = newMesh->getSubMesh(i);
-                if (!sm->useSharedVertices)
-                {
-                    const bool hasVertexAnim = sm->getVertexAnimationType() != Ogre::VAT_NONE;
-
-                    // Automatic
-                    VertexDeclaration* newDcl = 
-                        sm->vertexData->vertexDeclaration->getAutoOrganisedDeclaration(
-                            newMesh->hasSkeleton(), hasVertexAnim, sm->getVertexAnimationIncludesNormals());
-                    if (*newDcl != *(sm->vertexData->vertexDeclaration))
-                    {
-                        // Usages don't matter here since we're onlly exporting
-                        BufferUsageList bufferUsages;
-                        for (size_t u = 0; u <= newDcl->getMaxSource(); ++u)
-                            bufferUsages.push_back(HardwareBuffer::HBU_STATIC_WRITE_ONLY);
-                        sm->vertexData->reorganiseBuffers(newDcl, bufferUsages);
-                    }
-                }
-            }
-
-        }
+        xmlMeshSerializer->importMesh(opts.source, opts.colourElementType, newMesh.get());
 
         if( opts.mergeTexcoordResult != opts.mergeTexcoordToDestroy )
         {
@@ -521,6 +425,14 @@ struct MaterialCreator : public MeshSerializerListener
 {
     void processMaterialName(Mesh *mesh, String *name)
     {
+        if (name->empty())
+        {
+            LogManager::getSingleton().logWarning("one of the SubMeshes is using an empty material name. "
+                                                  "This violates the specs and may lead to crashes.");
+            // here, we explicitly want to allow fixing that
+            return;
+        }
+
         // create material because we do not load any .material files
         MaterialManager::getSingleton().create(*name, mesh->getGroup());
     }
@@ -592,8 +504,7 @@ int main(int numargs, char** args)
     }
     catch(Exception& e)
     {
-        cerr << "FATAL ERROR: " << e.getDescription() << std::endl;
-        cerr << "ABORTING!" << std::endl;
+        LogManager::getSingleton().logError(e.getDescription());
         retCode = 1;
     }
 

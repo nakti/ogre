@@ -9,7 +9,7 @@ One way to support both HLSL and GLSL is to include separate techniques in the m
 
 # Preprocessor definitions {#Preprocessor-definitions}
 
-Both GLSL and HLSL support using preprocessor definitions in your code - some are defined by the implementation, but you can also define your own, say in order to use the same source code for a few different variants of the same technique. In order to use this feature, include preprocessor conditions in your code, of the kind \#ifdef SYMBOL, \#if SYMBOL==2 etc. Then in your program definition, use the ’preprocessor\_defines’ option, following it with a string of definitions. Definitions are separated by ’;’ or ’,’ and may optionally have a ’=’ operator within them to specify a definition value. Those without an ’=’ will implicitly have a definition of 1. For example:
+Both GLSL and HLSL support using preprocessor definitions in your code - some are defined by the implementation, but you can also define your own, say in order to use the same source code for a few different variants of the same technique. In order to use this feature, include preprocessor conditions in your code, of the kind <tt>\#ifdef SYMBOL</tt>, <tt>\#if SYMBOL==2</tt> etc. Then in your program definition, use the `preprocessor_defines` option, following it with a string of definitions. Definitions are separated by `;` or `,` and may optionally have a `=` operator within them to specify a definition value. Those without an `=` will implicitly have a definition of 1. For example:
 
 ```cpp
 // in your shader
@@ -32,7 +32,7 @@ preprocessor_defines CLEVERTECHNIQUE,NUMTHINGS=2
 
 This way you can use the same source code but still include small variations, each one defined as a different Ogre program name but based on the same source code.
 
-@note on GLSL %Ogre pre-processes the source itself instead on relying on the driver implementation which is often buggy. This relaxes using \#ifdef directives compared to the standard - e.g. you can \#ifdef \#version. However this means that defines specified in GLSL extensions are not present.
+@note on GLSL %Ogre pre-processes the source itself instead on relying on the driver implementation which is often buggy. This relaxes using @c \#ifdef directives compared to the standard - e.g. you can <tt>\#ifdef \#version</tt>. However this means that defines specified in GLSL extensions are not present.
 
 # Cg programs {#Cg}
 
@@ -42,33 +42,36 @@ In order to define Cg programs, you have to have to load Plugin\_CgProgramManage
 fragment_program myCgFragmentProgram cg
 {
     source myCgFragmentProgram.cg
-    entry_point main
+    entry_point main_fp
     profiles ps_2_0 arbfp1
 }
 ```
 
-There are a few differences between this and the assembler program - to begin with, we declare that the fragment program is of type `cg` rather than `asm`, which indicates that it’s a high-level program using Cg. The `source` parameter is the same, except this time it’s referencing a Cg source file instead of a file of assembler.  Here is where things start to change. Firstly, we need to define an `entry_point`, which is the name of a function in the Cg program which will be the first one called as part of the fragment program. Unlike assembler programs, which just run top-to-bottom, Cg programs can include multiple functions and as such you must specify the one which start the ball rolling. Next, instead of a fixed `syntax` parameter, you specify one or more `profiles`; profiles are how Cg compiles a program down to the low-level assembler. The profiles have the same names as the assembler syntax codes mentioned above; the main difference is that you can list more than one, thus allowing the program to be compiled down to more low-level syntaxes so you can write a single high-level program which runs on both D3D and GL. You are advised to just enter the simplest profiles under which your programs can be compiled in order to give it the maximum compatibility. The ordering also matters; if a card supports more than one syntax then the one listed first will be used.
+There are a few differences between this and the assembler program - to begin with, we declare that the fragment program is of type `cg` rather than `asm`, which indicates that it’s a high-level program using Cg. The `source` parameter is the same, except this time it’s referencing a Cg source file instead of a file of assembler.  Here is where things start to change. Firstly, we need to define an `entry_point`, which is the name of a function in the Cg program which will be the first one called as part of the fragment program. Unlike assembler programs, which just run top-to-bottom, Cg programs can include multiple functions and as such you must specify the one which start the ball rolling.
+If you omit this line, %Ogre will default to looking for a function called `main`.
 
-Lastly, there is a final option called `compile_arguments`, where you can specify arguments exactly as you would to the cgc command-line compiler, should you wish to.
+Next, instead of a fixed `syntax` parameter, you specify one or more `profiles`; profiles are how Cg compiles a program down to the low-level assembler. The profiles have the same names as the assembler syntax codes mentioned above; the main difference is that you can list more than one, thus allowing the program to be compiled down to more low-level syntaxes so you can write a single high-level program which runs on both D3D and GL. You are advised to just enter the simplest profiles under which your programs can be compiled in order to give it the maximum compatibility. The ordering also matters; if a card supports more than one syntax then the one listed first will be used.
 
-# DirectX9 HLSL {#HLSL}
+@note Instead of `preprocessor_defines` Cg uses the `compile_arguments` option where you can specify arguments exactly as you would to the [cgc command-line compiler](http://developer.download.nvidia.com/cg/cgc.html). While this gives you more flexibility, it means that you must specify the defines as `-DSYMBOL` separated by spaces. Keep this in mind when copying program definitions across the supported languages.
 
-DirectX9 HLSL has a very similar language syntax to Cg but is tied to the DirectX API. The only benefit over Cg is that it only requires the DirectX 9 render system plugin, not any additional plugins. Declaring a DirectX9 HLSL program is very similar to Cg. Here’s an example:
+# DirectX HLSL {#HLSL}
+
+DirectX HLSL has an almost identical language syntax to Cg but is tied to the DirectX API. The benefit over Cg is that it only requires the DirectX render system plugin, not any additional plugins. Declaring a DirectX HLSL program is very similar to Cg. Here’s an example:
 
 ```cpp
 vertex_program myHLSLVertexProgram hlsl
 {
-    source myHLSLVertexProgram.txt
-    entry_point main
+    source myHLSLVertexProgram.hlsl
+    entry_point main_vp
     target vs_2_0
 }
 ```
 
 As you can see, the main syntax is almost identical, except that instead of `profiles` with a list of assembler formats, you have a `target` parameter which allows a single assembler target to be specified - obviously this has to be a DirectX assembler format syntax code.
 
-**Important Matrix Ordering Note:** One thing to bear in mind is that HLSL allows you to use 2 different ways to multiply a vector by a matrix - mul(v,m) or mul(m,v). The only difference between them is that the matrix is effectively transposed. You should use mul(m,v) with the matrices passed in from Ogre - this agrees with the shaders produced from tools like RenderMonkey, and is consistent with Cg too, but disagrees with the Dx9 SDK and FX Composer which use mul(v,m) - you will have to switch the parameters to mul() in those shaders.
-
-Note that if you use the float3x4 / matrix3x4 type in your shader, bound to an OGRE auto-definition (such as bone matrices) you should use the `column_major_matrices = false` option (discussed below) in your program definition. This is because OGRE passes float3x4 as row-major to save constant space (3 float4’s rather than 4 float4’s with only the top 3 values used) and this tells OGRE to pass all matrices like this, so that you can use mul(m,v) consistently for all calculations. OGRE will also to tell the shader to compile in row-major form (you don’t have to set the /Zpr compile option or \#pragma pack(row-major) option, OGRE does this for you). Note that passing bones in float4x3 form is not supported by OGRE, but you don’t need it given the above.
+@note One thing to bear in mind is that HLSL allows you to use 2 different ways to multiply a vector by a matrix - mul(v,m) or mul(m,v). The only difference between them is that the matrix is effectively transposed. You should use mul(m,v) with the matrices passed in from Ogre - this agrees with the shaders produced from tools like RenderMonkey, and is consistent with Cg too, but disagrees with the Dx9 SDK and FX Composer which use mul(v,m) - you will have to switch the parameters to mul() in those shaders.
+@note
+If you use the @c float3x4 / @c matrix3x4 type in your shader, bound to an OGRE auto-definition (such as bone matrices) you should use the `column_major_matrices = false` option (discussed below) in your program definition. This is because OGRE passes @c float3x4 as row-major to save constant space (3 float4’s rather than 4 float4’s with only the top 3 values used) and this tells OGRE to pass all matrices like this, so that you can use mul(m,v) consistently for all calculations. OGRE will also to tell the shader to compile in row-major form (you don’t have to set the `/Zpr` compile option or \#pragma pack(row-major) option, OGRE does this for you). Note that passing bones in float4x3 form is not supported by OGRE, but you don’t need it given the above.
 
 **Advanced options**<br>
 
@@ -97,35 +100,24 @@ vertex_program myGLSLVertexProgram glsl
 
 In GLSL, no entry point needs to be defined since it is always `main()` and there is no target definition since GLSL source is compiled into native GPU code and not intermediate assembly. 
 
-GLSL supports the use of modular shaders. This means you can write GLSL external functions that can be used in multiple shaders.
+For modularity %Ogre supports the non-standard <tt>\#include <something.glsl></tt> directive in GLSL. It also works with OpenGL ES and resembles what is available with HLSL and Cg.
 
-@note shader attachment is not supported by OpenGL ES. However OGRE allows you to use the \#include directive in GLSL shaders, which is independent of the backend.
+@deprecated The @c attach keyword for multi-module shaders is not supported on OpenGL ES and therefore deprecated in favor of the @c \#include directive
 
 ```cpp
-vertex_program myExternalGLSLFunction1 glsl
+vertex_program myExternalGLSLFunction glsl
 {
-    source myExternalGLSLfunction1.vert
+    source myExternalGLSLfunction.vert
 }
 
-vertex_program myExternalGLSLFunction2 glsl
-{
-    source myExternalGLSLfunction2.vert
-}
-
-vertex_program myGLSLVertexProgram1 glsl
+vertex_program myGLSLVertexProgram glsl
 {
     source myGLSLfunction.vert
-    attach myExternalGLSLFunction1 myExternalGLSLFunction2
-}
-
-vertex_program myGLSLVertexProgram2 glsl
-{
-    source myGLSLfunction.vert
-    attach myExternalGLSLFunction1
+    attach myExternalGLSLFunction
 }
 ```
 
-External GLSL functions are attached to the program that needs them by using `attach` and including the names of all external programs required on the same line separated by spaces. This can be done for both vertex and fragment programs.
+The `attach` keyword allows creating GLSL shaders from multiple shader modules of the same type. The referencing shader has to forward-declare the functions it intends to use
 
 ## GLSL Texture Samplers {#GLSL-Texture-Samplers}
 
@@ -204,6 +196,10 @@ material exampleGLSLmatrixUniforms
   }
 }
 ```
+
+@note GLSL uses column-major storage by default, while %Ogre is using row-major storage. Furthermore, GLSL is using column-major addressing, while %Ogre and HLSL use row-major addressing.
+This means that `mat[0]` is the first column in GLSL, but the first row in HLSL and %Ogre. %Ogre takes care of transposing square matrices before uploading them with GLSL, so matrix-vector multiplication `M*v` just works and `mat[0]` will return the same data.
+However, with non-square matrices transposing would change their GLSL type from e.g. `mat2x4` (two columns, four rows) to `mat4x2` (two rows, four columns) and consequently what `mat[0]` would return. Therefore %Ogre just passes such matrices unchanged and you have to handle this case (notably in skinning) yourself by either transposing the matrix in the shader or column-wise access.
 
 ## Binding vertex attributes {#Binding-vertex-attributes}
 
@@ -449,7 +445,10 @@ Parameters can be specified using one of 4 commands as shown below. The same syn
 
 This command sets the value of an indexed parameter. 
 
-format: param\_indexed &lt;index&gt; &lt;type&gt; &lt;value&gt; example: param\_indexed 0 float4 10.0 0 0 0
+@par
+Format: param\_indexed &lt;index&gt; &lt;type&gt; &lt;value&gt;
+@par
+Example: param\_indexed 0 float4 10.0 0 0 0
 
 @param index
 simply a number representing the position in the parameter list which the value should be written, and you should derive this from your program definition. The index is relative to the way constants are stored on the card, which is in 4-element blocks. For example if you defined a float4 parameter at index 0, the next index would be 1. If you defined a matrix4x4 at index 0, the next usable index would be 4, since a 4x4 matrix takes up 4 indexes.
@@ -466,7 +465,10 @@ a space or tab-delimited list of values which can be converted into the type you
 
 This command tells Ogre to automatically update a given parameter with a derived value. This frees you from writing code to update program parameters every frame when they are always changing.
 
-format: param\_indexed\_auto &lt;index&gt; &lt;value\_code&gt; &lt;extra\_params&gt; example: param\_indexed\_auto 0 worldviewproj\_matrix
+@par
+Format: param\_indexed\_auto &lt;index&gt; &lt;value\_code&gt; &lt;extra\_params&gt;
+@par
+Example: param\_indexed\_auto 0 worldviewproj\_matrix
 
 @param index
 has the same meaning as [param\_indexed](#param_005findexed); note this time you do not have to specify the size of the parameter because the engine knows this already. In the example, the world/view/projection matrix is being used so this is implicitly a matrix4x4.
@@ -478,13 +480,24 @@ is one of Ogre::GpuProgramParameters::AutoConstantType without the `ACT_` prefix
 
 ## param\_named
 
-This is the same as param\_indexed, but uses a named parameter instead of an index. This can only be used with high-level programs which include parameter names; if you’re using an assembler program then you have no choice but to use indexes. Note that you can use indexed parameters for high-level programs too, but it is less portable since if you reorder your parameters in the high-level program the indexes will change. format: param\_named &lt;name&gt; &lt;type&gt; &lt;value&gt; example: param\_named shininess float4 10.0 0 0 0 The type is required because the program is not compiled and loaded when the material script is parsed, so at this stage we have no idea what types the parameters are. Programs are only loaded and compiled when they are used, to save memory.
+This is the same as param\_indexed, but uses a named parameter instead of an index. This can only be used with high-level programs which include parameter names; if you’re using an assembler program then you have no choice but to use indexes. Note that you can use indexed parameters for high-level programs too, but it is less portable since if you reorder your parameters in the high-level program the indexes will change.
+@par
+Format: param\_named &lt;name&gt; &lt;type&gt; &lt;value&gt;
+@par
+Example: param\_named shininess float4 10.0 0 0 0
+
+The type is required because the program is not compiled and loaded when the material script is parsed, so at this stage we have no idea what types the parameters are. Programs are only loaded and compiled when they are used, to save memory.
 
 <a name="param_005fnamed_005fauto"></a><a name="param_005fnamed_005fauto-1"></a>
 
 ## param\_named\_auto
 
-This is the named equivalent of param\_indexed\_auto, for use with high-level programs. Format: param\_named\_auto &lt;name&gt; &lt;value\_code&gt; &lt;extra\_params&gt; Example: param\_named\_auto worldViewProj WORLDVIEWPROJ\_MATRIX
+This is the named equivalent of param\_indexed\_auto, for use with high-level programs.
+
+@par
+Format: param\_named\_auto &lt;name&gt; &lt;value\_code&gt; &lt;extra\_params&gt;
+@par
+Example: param\_named\_auto worldViewProj worldviewproj\_matrix
 
 The allowed value codes and the meaning of extra\_params are detailed in [param\_indexed\_auto](#param_005findexed_005fauto).
 
@@ -502,21 +515,25 @@ The only required parameter is a name, which must be the name of an already defi
 
 # Shadows and Vertex Programs {#Shadows-and-Vertex-Programs}
 
-When using shadows (See [Shadows](@ref Shadows)), the use of vertex programs can add some additional complexities, because Ogre can only automatically deal with everything when using the fixed-function pipeline. If you use vertex programs, and you are also using shadows, you may need to make some adjustments. 
+When using @ref Shadows, the use of vertex programs can add some additional complexities, because %Ogre can only automatically deal with everything when using the fixed-function pipeline. If you use vertex programs, and you are also using shadows, you may need to make some adjustments.
 
-If you use **stencil shadows**, then any vertex programs which do vertex deformation can be a problem, because stencil shadows are calculated on the CPU, which does not have access to the modified vertices. If the vertex program is doing standard skeletal animation, this is ok (see section above) because Ogre knows how to replicate the effect in software, but any other vertex deformation cannot be replicated, and you will either have to accept that the shadow will not reflect this deformation, or you should turn off shadows for that object. 
+- If you use **stencil shadows**, then any vertex programs which do vertex deformation can be a problem, because stencil shadows are calculated on the CPU, which does not have access to the modified vertices. If the vertex program is doing standard skeletal animation, this is ok (see section above) because %Ogre knows how to replicate the effect in software, but any other vertex deformation cannot be replicated, and you will either have to accept that the shadow will not reflect this deformation, or you should turn off shadows for that object.
+- If you use **texture shadows**, then vertex deformation is acceptable; however, when rendering the object into the shadow texture (the shadow caster pass), the shadow has to be rendered in a solid colour (linked to the ambient colour). You must therefore provide an alternative vertex program, so %Ogre provides you with a way of specifying one to use when rendering the caster.
 
-If you use **texture shadows**, then vertex deformation is acceptable; however, when rendering the object into the shadow texture (the shadow caster pass), the shadow has to be rendered in a solid colour (linked to the ambient colour). You must therefore provide an alternative vertex program, so Ogre provides you with a way of specifying one to use when rendering the caster. Basically you link an alternative vertex program, using exactly the same syntax as the original vertex program link:
+Basically you specify an alternate material to use when rendering the object into the shadow texture:
 
 ```cpp
-shadow_caster_vertex_program_ref myShadowCasterVertexProgram
+technique myShaderBasedTechnique
 {
-    param_indexed_auto 0 worldviewproj_matrix
-    param_indexed_auto 4 ambient_light_colour
+    shadow_caster_material myShadowCasterMaterial
+    pass
+    {
+        ...
+    }
 }
 ```
 
-When rendering a shadow caster, Ogre will automatically use the alternate program. You can bind the same or different parameters to the program - the most important thing is that you bind **ambient\_light\_colour**, since this determines the colour of the shadow in modulative texture shadows. If you don’t supply an alternate program, Ogre will fall back on a fixed-function material which will not reflect any vertex deformation you do in your vertex program. 
+When rendering a shadow caster, Ogre will automatically use the alternate material. You can bind the same or different parameters to the program - the most important thing is that you bind **ambient\_light\_colour**, since this determines the colour of the shadow in modulative texture shadows. If you don’t supply an alternate material, Ogre will fall back on a fixed-function material which will not reflect any vertex deformation you do in your vertex or geometry programs.
 
 In addition, when rendering the shadow receivers with shadow textures, Ogre needs to project the shadow texture. It does this automatically in fixed function mode, but if the receivers use vertex programs, they need to have a shadow receiver program which does the usual vertex deformation, but also generates projective texture coordinates. The additional program linked into the pass like this:
 
@@ -572,14 +589,6 @@ You can implement pose animation (blending between multiple poses based on weigh
 
 Note that ALL submeshes must be assigned a material which implements this, and that if you combine skeletal animation with vertex animation (See [Animation](#Animation)) then all techniques must be hardware accelerated for any to be.
 
-# Vertex texture fetching in vertex programs {#Vertex-texture-fetching-in-vertex-programs}
-
-If your vertex program makes use of [Vertex Texture Fetch](#Vertex-Texture-Fetch), you should declare that with the ’uses\_vertex\_texture\_fetch’ directive. This is enough to tell Ogre that your program uses this feature and that hardware support for it should be checked.
-
-```cpp
-   uses_vertex_texture_fetch true
-```
-
 # Vertex Texture Fetch {#Vertex-Texture-Fetch}
 
 More recent generations of video card allow you to perform a read from a texture in the vertex program rather than just the fragment program, as is traditional. This allows you to, for example, read the contents of a texture and displace vertices based on the intensity of the colour contained within.
@@ -588,15 +597,21 @@ More recent generations of video card allow you to perform a read from a texture
 
 ## Declaring the use of vertex texture fetching
 
-Since hardware support for vertex texture fetching is not ubiquitous, you should use the uses\_vertex\_texture\_fetch (See [Vertex texture fetching in vertex programs](#Vertex-texture-fetching-in-vertex-programs)) directive when declaring your vertex programs which use vertex textures, so that if it is not supported, technique fallback can be enabled. This is not strictly necessary for DirectX-targeted shaders, since vertex texture fetching is only supported in vs\_3\_0, which can be stated as a required syntax in your shader definition, but for OpenGL (GLSL), there are cards which support GLSL but not vertex textures, so you should be explicit about your need for them.
+If your vertex program makes use of Vertex Texture Fetch, you should declare that as
+
+```cpp
+   uses_vertex_texture_fetch true
+```
+
+Since hardware support for vertex texture fetching is not ubiquitous, you should use the directive when declaring your vertex programs which use vertex textures, so that if it is not supported, technique fallback can be enabled. This is not strictly necessary for DirectX-targeted shaders, since vertex texture fetching is only supported in vs\_3\_0, which can be stated as a required syntax in your shader definition, but for OpenGL (GLSL), there are cards which support GLSL but not vertex textures, so you should be explicit about your need for them.
 
 <a name="Render-system-texture-binding-differences"></a>
 
-## Render system texture binding differences
+## DirectX9 binding limitations
 
 Unfortunately the method for binding textures so that they are available to a vertex program is not well standardised. As at the time of writing, Shader Model 3.0 (SM3.0) hardware under DirectX9 include 4 separate sampler bindings for the purposes of vertex textures. OpenGL, on the other hand, is able to access vertex textures in GLSL (and in assembler through NV\_vertex\_program\_3, although this is less popular), but the textures are shared with the fragment pipeline. I expect DirectX to move to the GL model with the advent of DirectX10, since a unified shader architecture implies sharing of texture resources between the two stages. As it is right now though, we’re stuck with an inconsistent situation.
 
-To reflect this, you should use the [binding\_type](#binding_005ftype) attribute in a texture unit to indicate which unit you are targeting with your texture - ’fragment’ (the default) or ’vertex’. For render systems that don’t have separate bindings, this actually does nothing. But for those that do, it will ensure your texture gets bound to the right processing unit.
+To reflect this, you should use the `binding_type` attribute in a texture unit to indicate which unit you are targeting with your texture - ’fragment’ (the default) or ’vertex’. For render systems that don’t have separate bindings, this actually does nothing. But for those that do, it will ensure your texture gets bound to the right processing unit.
 
 Note that whilst DirectX9 has separate bindings for the vertex and fragment pipelines, binding a texture to the vertex processing unit still uses up a ’slot’ which is then not available for use in the fragment pipeline. I didn’t manage to find this documented anywhere, but the nVidia samples certainly avoid binding a texture to the same index on both vertex and fragment units, and when I tried to do it, the texture did not appear correctly in the fragment unit, whilst it did as soon as I moved it into the next unit.
 
@@ -615,7 +630,7 @@ As at the time of writing (early Q3 2006), ATI do not support texture fetch in t
 @page Runtime-Shader-Generation Runtime Shader Generation 
 
 Writing shading programs is a common task when developing 3D based application. Most of the visual effects used by 3D based applications involve shader programs.
-Additionally with D3D11, support for fixed pipeline functionality was removed. Meaning you can only render objects using shaders.
+Additionally with D3D11/ GL3, support for fixed pipeline functionality was removed. Meaning you can only render objects using shaders.
 
 While @ref High-level-Programs offer you maximal control and flexibility over how your objects are rendered, writing and maintaining them is also a very time consuming task.
 
@@ -625,17 +640,63 @@ Instead %Ogre can also automatically generate shaders on the fly, based on objec
 * Reusable code - once you've written the shader extension you can use it anywhere due to its independent nature.
 * Custom shaders extension library - enjoy the shared library of effects created by the community. Unlike hand written shader code, which may require many adjustments to be plugged into your own shader code, using the extensions library requires minimum changes.
 
-You have the choice between two different systems, which are implemented as components. You can select the one you need (or disable both) at compile time.
+The system is implemented as a component, so you can enable/ disable it at compile time.
 
 * @subpage rtss <br />
 The RTSS is not another Uber shader with an exploding amount of @c \#ifdefs that make it increasingly difficult to add new functionality. 
 Instead, it manages a set of opaque isolated components (SubRenderStates) where each implements a specific effect.
 These "effects" notable include full Fixed Function emulation. At the core these components are plain shader files providing a set of functions. The shaders are based on properties defined in @ref Material-Scripts.
-* @subpage hlms <br />
-This component allows you to manage shader variations of a specific shader template.
-This is a different take to the Uber shader management, but instead of using plain
-@c \#ifdefs it uses a custom, more powerful preprocessor language.
-Currently the HLMS can be only configured via a custom API and does not respect classical @ref Ogre::Material properties.
+
+# Uber shader tips
+
+In case, you are not conviced and want to go with your hand-rolled uber shader, here are some tips:
+
+1. %Ogre supports @c \#include directives universally - even with GLSL, so use them to split up your shader.
+2. There is the `HLSL_SM4Support.hlsl` helper which abstracts the differences between HLSL9/ Cg and HLSL SM4.
+
+Then you can have a shader skeleton like this:
+
+```cpp
+#ifdef USE_UV
+#include "parameters_uv.glsl"
+#endif
+#ifdef USE_SKINNING
+#include <parameters_skinning.glsl>
+#endif
+...
+
+void main()
+{
+#ifdef USE_UV
+    #include <transform_uv.glsl>
+#endif
+#ifdef USE_SKINNING
+    #include <transform_skinning.glsl>
+#endif
+#ifdef USE_TANGENT
+    #include <construct_tbn.glsl>
+#endif
+    ...
+    gl_Position = ...;
+}
+```
+
+then in the material file, you can instanciate it as:
+
+```cpp
+vertex_program TextureAndSkinning glsl
+{
+    source UberShader_vp.glsl
+    preprocessor_defines USE_UV,USE_SKINNING
+    default_params
+    {
+        ...
+    }
+}
+```
+and reference it with your materials.
+
+Incidentally, this is very similar to what the RTSS is doing internally. Except, you do not need the @c preprocessor_defines part, as it can derive automatically from the material what needs to be done.
 
 # Historical background
 

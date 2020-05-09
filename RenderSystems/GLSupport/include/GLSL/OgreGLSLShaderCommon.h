@@ -36,24 +36,22 @@ THE SOFTWARE.
 namespace Ogre {
     /** Specialisation of HighLevelGpuProgram to provide support for OpenGL
         Shader Language (GLSL).
-    @remarks
+
         GLSL has no target assembler or entry point specification like DirectX 9 HLSL.
-        Vertex and Fragment shaders only have one entry point called "main".  
+        Vertex and Fragment shaders only have one entry point called "main".
         When a shader is compiled, microcode is generated but can not be accessed by
         the application.
-        GLSL also does not provide assembler low level output after compiling.  The GL Render
-        system assumes that the Gpu program is a GL Gpu program so GLSLProgram will create a 
-        GLSLGpuProgram that is subclassed from GLGpuProgram for the low level implementation.
-        The GLSLProgram class will create a shader object and compile the source but will
-        not create a program object.  It's up to GLSLGpuProgram class to request a program object
-        to link the shader object to.
+        GLSL also does not provide assembler low level output after compiling. Therefore the GLSLShader will also stand in
+        for the low level implementation.
+        The GLSLProgram class will create a shader object and compile the source but will not
+        create a program object.  It's up to the GLSLProgramManager to request a program object to link the shader object to.
 
     @note
         GLSL supports multiple modular shader objects that can be attached to one program
         object to form a single shader.  This is supported through the "attach" material script
         command.  All the modules to be attached are listed on the same line as the attach command
         separated by white space.
-        
+
     */
     class GLSLShaderCommon : public HighLevelGpuProgram
     {
@@ -77,7 +75,6 @@ namespace Ogre {
             const String& name, ResourceHandle handle,
             const String& group, bool isManual, ManualResourceLoader* loader);
 
-        virtual bool compile( bool checkErrors = false) = 0;
         virtual void attachToProgramObject(const uint programObject) = 0;
         virtual void detachFromProgramObject(const uint programObject) = 0;
 
@@ -92,45 +89,33 @@ namespace Ogre {
         /** Gets whether matrix packed in column-major order. */
         bool getColumnMajorMatrices(void) const { return mColumnMajorMatrices; }
 
-        /** Return the shader link status.
-            Only used for separable programs.
-        */
-        int isLinked(void) { return mLinked; }
+        /// Only used for separable programs.
+        virtual bool linkSeparable() { return false; }
 
-        /** Set the shader link status.
-            Only used for separable programs.
-        */
-        void setLinked(int flag) { mLinked = flag; }
+        /// reset link status of separable program
+        void resetLinked() { mLinked = 0; }
 
         /// Get the OGRE assigned shader ID.
         uint getShaderID(void) const { return mShaderID; }
 
+        /// If we are using program pipelines, the OpenGL program handle
+        uint getGLProgramHandle() const { return mGLProgramHandle; }
+
         /// Get the uniform cache for this shader
         GLUniformCache*    getUniformCache(){return &mUniformCache;}
 
-        /// Command object for setting macro defines
-        class CmdPreprocessorDefines : public ParamCommand
-        {
-        public:
-            String doGet(const void* target) const;
-            void doSet(void* target, const String& val);
-        };
+        /// GLSL does not provide access to the low level code of the shader, so use this shader for binding as well
+        GpuProgram* _getBindingDelegate(void) { return this; }
     protected:
-        static CmdPreprocessorDefines msCmdPreprocessorDefines;
+        /// GLSL does not provide access to the low level implementation of the shader, so this method s a no-op
+        void createLowLevelImpl() {}
+
         static CmdAttach msCmdAttach;
         static CmdColumnMajorMatrices msCmdColumnMajorMatrices;
 
         String getResourceLogName() const;
 
-        /** Internal load implementation, must be implemented by subclasses.
-        */
-        void loadFromSource(void);
-
-        /// Overridden from HighLevelGpuProgram
-        void unloadImpl(void);
-
-        /// Populate the passed parameters with name->index map
-        void populateParameterNames(GpuProgramParametersSharedPtr params);
+        void prepareImpl(void);
 
         /// Attached Shader names
         String mAttachedShaderNames;
@@ -148,6 +133,11 @@ namespace Ogre {
 
         /// OGRE assigned shader ID.
         uint mShaderID;
+
+        /// GL handle for shader object.
+        uint mGLShaderHandle;
+        /// GL handle for program object the shader is bound to.
+        uint mGLProgramHandle;
 
         /// Pointer to the uniform cache for this shader
         GLUniformCache    mUniformCache;

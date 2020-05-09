@@ -87,15 +87,19 @@ namespace Ogre
         RSC_WIDE_LINES              = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 4),
         /// Supports hardware stencil buffer
         RSC_HWSTENCIL               = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 5),
-        /// Supports atomic counter buffers
-        RSC_ATOMIC_COUNTERS         = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 6),
+        /// Supports read/write buffers with atomic counters (e.g. RWStructuredBuffer or SSBO)
+        RSC_READ_WRITE_BUFFERS      = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 6),
+        /// @deprecated check RSC_READ_WRITE_BUFFERS
+        RSC_ATOMIC_COUNTERS         = RSC_READ_WRITE_BUFFERS,
         /// Supports compressed textures in the ASTC format
         RSC_TEXTURE_COMPRESSION_ASTC = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 7),
         /// Supports 32bit hardware index buffers
         RSC_32BIT_INDEX             = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 8),
         /// Supports vertex programs (vertex shaders)
+        /// @deprecated All targetted APIs by Ogre support this feature
         RSC_VERTEX_PROGRAM          = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 9),
         /// Supports fragment programs (pixel shaders)
+        /// @deprecated All targetted APIs by Ogre support this feature
         RSC_FRAGMENT_PROGRAM        = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 10),
         /// Supports performing a scissor test to exclude areas of the screen
 		/// @deprecated All targetted APIs by Ogre support this feature
@@ -227,28 +231,8 @@ namespace Ogre
             major = minor = release = build = 0;
         }
 
-        String toString() const 
-        {
-            StringStream str;
-            str << major << "." << minor << "." << release << "." << build;
-            return str.str();
-        }
-
-        void fromString(const String& versionString)
-        {
-            StringVector tokens = StringUtil::split(versionString, ".");
-            if(!tokens.empty())
-            {
-                major = StringConverter::parseInt(tokens[0]);
-                if (tokens.size() > 1)
-                    minor = StringConverter::parseInt(tokens[1]);
-                if (tokens.size() > 2)
-                    release = StringConverter::parseInt(tokens[2]);
-                if (tokens.size() > 3)
-                    build = StringConverter::parseInt(tokens[3]);
-            }
-
-        }
+        String toString() const;
+        void fromString(const String& versionString);
     };
 
     /** Enumeration of GPU vendors. */
@@ -438,7 +422,8 @@ namespace Ogre
             mStencilBufferBitDepth = num;
         }
 
-        void setNumVertexBlendMatrices(ushort num)
+        /// @deprecated do not use
+        OGRE_DEPRECATED void setNumVertexBlendMatrices(ushort num)
         {
             mNumVertexBlendMatrices = num;
         }
@@ -487,9 +472,8 @@ namespace Ogre
             return mStencilBufferBitDepth;
         }
 
-        /** Returns the number of matrices available to hardware vertex 
-        blending for this rendering system. */
-        ushort getNumVertexBlendMatrices(void) const
+        /// @deprecated do not use
+        OGRE_DEPRECATED ushort getNumVertexBlendMatrices(void) const
         {
             return mNumVertexBlendMatrices;
         }
@@ -546,26 +530,15 @@ namespace Ogre
 
         /** Adds the profile to the list of supported profiles
         */
-        void addShaderProfile(const String& profile)
-        {
-            mSupportedShaderProfiles.insert(profile);
-
-        }
+        void addShaderProfile(const String& profile);
 
         /** Remove a given shader profile, if present.
         */
-        void removeShaderProfile(const String& profile)
-        {
-            mSupportedShaderProfiles.erase(profile);
-        }
+        void removeShaderProfile(const String& profile);
 
         /** Returns true if profile is in the list of supported profiles
         */
-        bool isShaderProfileSupported(const String& profile) const
-        {
-            return (mSupportedShaderProfiles.end() != mSupportedShaderProfiles.find(profile));
-        }
-
+        bool isShaderProfileSupported(const String& profile) const;
 
         /** Returns a set of all supported shader profiles
         * */

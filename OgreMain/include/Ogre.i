@@ -45,10 +45,11 @@ using namespace std;
 #define OGRE_MUTEX(arg)
 
 %feature("autodoc", "1");
-%feature("director") *Listener;
 %feature("director") *::Listener;
+#ifdef SWIGPYTHON
 // should be turned on globally if all renames are in place
 %feature("flatnested") Ogre::MaterialManager::Listener;
+#endif
 
 %ignore *::operator=;  // needs rename to wrap
 %ignore *::setUserAny; // deprecated
@@ -88,6 +89,18 @@ JNIEnv* OgreJNIGetEnv() {
 }
 #endif
 
+#ifdef SWIGCSHARP
+  %apply void *VOID_INT_PTR {void *}
+
+  %typemap(csvarout) void * %{
+    get {
+	  global::System.IntPtr cPtr = $imcall;
+	  if (OgrePINVOKE.SWIGPendingException.Pending) throw OgrePINVOKE.SWIGPendingException.Retrieve();
+	  return cPtr;
+	}
+  %}
+#endif
+
 // convert c++ exceptions to language native exceptions
 %exception {
     try {
@@ -106,6 +119,18 @@ JNIEnv* OgreJNIGetEnv() {
 // connect operator<< to tp_repr
 %ignore ::operator<<;
 %feature("python:slot", "tp_repr", functype="reprfunc") *::__repr__;
+
+%ignore *::operator+;
+%rename(__add__) *::operator+;
+
+%ignore *::operator-;
+%rename(__sub__) *::operator-;
+
+%ignore *::operator*;
+%rename(__mul__) *::operator*;
+
+%ignore *::operator/;
+%rename(__div__) *::operator/;
 
 #ifdef SWIGJAVA
 #define REPRFUNC toString
@@ -225,6 +250,7 @@ ADD_REPR(TRect)
 %include "OgreMath.h"
 ADD_REPR(Degree)
 ADD_REPR(Radian)
+%template(RayTestResult) std::pair<bool, float>;
 %include "OgreStringVector.h"
 %template(StringVector) std::vector<Ogre::String>;  // actual vector<T>
 %template(StringVectorPtr) Ogre::SharedPtr<std::vector<Ogre::String> >;
@@ -237,6 +263,8 @@ ADD_REPR(Radian)
 %ignore Ogre::Vector<3, Ogre::Real>::Vector(float, float);
 %ignore Ogre::Vector<3, Ogre::Real>::Vector(float, float, float, float);
 %ignore Ogre::Vector<3, Ogre::Real>::xyz;
+%ignore Ogre::Vector<3, int>::Vector(int, int, int, int);
+%ignore Ogre::Vector<3, int>::xyz;
 %ignore Ogre::Vector<4, Ogre::Real>::Vector(float, float);
 %ignore Ogre::Vector<4, Ogre::Real>::Vector(float, float, float);
 %include "OgreVector.h"
@@ -256,17 +284,40 @@ ADD_REPR(Vector)
 %template(Vector ## N) Ogre::Vector<N, Ogre::Real>;
 %enddef
 
+%ignore Ogre::VectorBase<3, int>::VectorBase;
+%template(VectorBase3i) Ogre::VectorBase<3, int>;
+%template(Vector3i) Ogre::Vector<3, int>;
+
 TPL_VECTOR(2)
 TPL_VECTOR(3)
 TPL_VECTOR(4)
 %include "OgreMatrix3.h"
 ADD_REPR(Matrix3)
-%ignore Ogre::TransformBase::extract3x3Matrix; // deprecated
-%ignore Ogre::TransformBase::extractQuaternion; // deprecated
+%extend Ogre::Matrix3
+{
+    Ogre::Vector3 operator*(const Ogre::Vector3& v) { return *$self * v; }
+}
+%ignore Ogre::TransformBaseReal::extract3x3Matrix; // deprecated
+%ignore Ogre::TransformBaseReal::extractQuaternion; // deprecated
 %ignore Ogre::Matrix4::concatenate; // deprecated
 %include "OgreMatrix4.h"
 ADD_REPR(Matrix4)
+%template(TransformBaseMatrix4) Ogre::TransformBase<4, Ogre::Real>;
+%extend Ogre::Matrix4
+{
+    Ogre::Vector4 operator*(const Ogre::Vector4& v) { return *$self * v; }
+    Ogre::Vector3 operator*(const Ogre::Vector3& v) { return *$self * v; }
+    Ogre::Matrix4 operator*(const Ogre::Matrix4& m) { return *$self * m; }
+    Ogre::Matrix4 operator+(const Ogre::Matrix4& m) { return *$self + m; }
+    Ogre::Matrix4 operator-(const Ogre::Matrix4& m) { return *$self - m; }
+}
 ADD_REPR(Affine3)
+%extend Ogre::Affine3
+{
+    Ogre::Vector4 operator*(const Ogre::Vector4& v) { return *$self * v; }
+    Ogre::Vector3 operator*(const Ogre::Vector3& v) { return *$self * v; }
+    Ogre::Affine3 operator*(const Ogre::Affine3& m) { return *$self * m; }
+}
 %include "OgreQuaternion.h"
 ADD_REPR(Quaternion)
 %include "OgreSimpleSpline.h"
@@ -280,6 +331,7 @@ ADD_REPR(Plane)
 %include "OgrePlaneBoundedVolume.h"
 // I/O
 %include "OgreConfigOptionMap.h"
+%template(ConfigOptionMap) std::map<Ogre::String, Ogre::ConfigOption>;
 %ignore Ogre::ConfigFile::load; // conflicting overloads
 %ignore Ogre::ConfigFile::getSettingsIterator; // deprecated
 %ignore Ogre::ConfigFile::getSectionIterator;
@@ -315,11 +367,18 @@ SHARED_PTR(FileHandleDataStream);
 %include "OgreSerializer.h"
 %include "OgreScriptLoader.h"
 // Listeners 
+%feature("director") Ogre::FrameListener;
 %include "OgreFrameListener.h"
+%feature("director") Ogre::LodListener;
 %include "OgreLodListener.h"
+%feature("director") Ogre::RenderObjectListener;
 %include "OgreRenderObjectListener.h"
+%feature("director") Ogre::RenderQueueListener;
 %include "OgreRenderQueueListener.h"
+%feature("director") Ogre::RenderTargetListener;
 %include "OgreRenderTargetListener.h"
+%feature("director") Ogre::MeshSerializerListener;
+%feature("director") Ogre::ResourceLoadingListener;
 // More Data Types
 %include "OgreColourValue.h"
 ADD_REPR(ColourValue)
@@ -420,6 +479,9 @@ SHARED_PTR(HardwareUniformBuffer);
 %ignore Ogre::ResourceManager::load;
 #endif
 %include "OgreResourceManager.h"
+    // ambiguity as enums are just ints
+    %ignore Ogre::TextureManager::createManual(const String&, const String&,TextureType,uint,uint,int,PixelFormat,int);
+    %ignore Ogre::TextureManager::createManual(const String&, const String&,TextureType,uint,uint,int,PixelFormat);
     %include "OgreTextureManager.h"
     %include "OgreGpuProgramManager.h"
     %include "OgreHighLevelGpuProgramManager.h"
@@ -469,7 +531,14 @@ SHARED_PTR(Material);
 %template(Techniques) std::vector<Ogre::Technique*>;
 %include "OgreMaterial.h"
 %ignore Ogre::RenderSystem::_setBindingType;
-%ignore Ogre::RenderSystem::bindGpuProgramPassIterationParameters;
+%ignore Ogre::RenderSystem::_setBindingType;
+%ignore Ogre::RenderSystem::_setTextureUnitFiltering;
+%ignore Ogre::RenderSystem::_setTextureAddressingMode;
+%ignore Ogre::RenderSystem::_setSceneBlending;
+%ignore Ogre::RenderSystem::_setFog;
+%ignore Ogre::RenderSystem::_setWorldMatrix;
+%ignore Ogre::RenderSystem::_setViewMatrix;
+%ignore Ogre::RenderSystem::_setProjectionMatrix;
 %include "OgreRenderSystem.h"
 %include "OgreCompositorManager.h"
 #ifdef SWIGJAVA
@@ -483,6 +552,12 @@ SHARED_PTR(Material);
 %include "OgreMaterialManager.h"
 %include "OgreRenderable.h"
 %include "OgreShadowCaster.h"
+%extend Ogre::MovableObject {
+  Entity* castEntity()
+  {
+    return dynamic_cast<Ogre::Entity*>($self);
+  }
+}
 %include "OgreMovableObject.h"
     %include "OgreBillboardChain.h"
         %include "OgreRibbonTrail.h"
@@ -492,6 +567,7 @@ SHARED_PTR(Material);
     %ignore Ogre::Light::getPosition;
     %ignore Ogre::Light::getDirection;
     %include "OgreLight.h"
+    %ignore Ogre::Node::getChildIterator;
     %include "OgreNode.h"
         %include "OgreBone.h"
         %ignore Ogre::SceneNode::getAttachedObjectIterator;
@@ -530,6 +606,7 @@ SHARED_PTR(Material);
         ADD_REPR(Camera)
     %include "OgreManualObject.h"
     %template(SubEntityList) std::vector<Ogre::SubEntity*>;
+    %ignore Ogre::Entity::getAttachedObjectIterator;
     %include "OgreEntity.h"
     %include "OgreSubEntity.h"
     SHARED_PTR(ParticleSystem);
@@ -557,7 +634,6 @@ SHARED_PTR(Mesh);
 %include "OgrePatchSurface.h"
     SHARED_PTR(PatchMesh);
     %include "OgrePatchMesh.h"
-%feature("director") Ogre::MeshSerializerListener;
 %include "OgreMeshSerializer.h"
 %include "OgreMeshManager.h"
 %ignore Ogre::Pass::getTextureUnitStateIterator; // deprecated
@@ -598,8 +674,11 @@ SHARED_PTR(Mesh);
 %ignore Ogre::SceneManager::getCameraIterator; // deprecated
 %ignore Ogre::SceneManager::getAnimationIterator;
 %ignore Ogre::SceneManager::getAnimationStateIterator;
-%ignore Ogre::SceneManager::setShadowTextureCasterMaterial(const String&);
-%ignore Ogre::SceneManager::setShadowTextureReceiverMaterial(const String&);
+%ignore Ogre::SceneManager::getMovableObjectIterator;
+%ignore Ogre::SceneManager::getShadowTextureCount;
+%ignore Ogre::SceneManager::getShadowTextureConfigIterator;
+%newobject Ogre::SceneManager::createRayQuery(const Ray&, uint32 mask);
+%newobject Ogre::SceneManager::createRayQuery(const Ray&);
 %include "OgreSceneManager.h"
 %ignore Ogre::SceneManagerEnumerator::createSceneManager(SceneTypeMask);
 %ignore Ogre::SceneManagerEnumerator::createSceneManager(SceneTypeMask, const String&);
@@ -610,6 +689,7 @@ SHARED_PTR(Mesh);
 %ignore Ogre::Root::getSceneManagerIterator;
 %ignore Ogre::Root::createSceneManager(SceneTypeMask);
 %ignore Ogre::Root::createSceneManager(SceneTypeMask, const String&);
+%ignore Ogre::Root::getMovableObjectFactoryIterator;
 %include "OgreRoot.h"
 // dont wrap: platform specific
 // %include "OgreWindowEventUtilities.h"
