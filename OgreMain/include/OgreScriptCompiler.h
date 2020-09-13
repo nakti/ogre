@@ -466,8 +466,11 @@ namespace Ogre
         AliasTextureNamePairList *mAliases;
         static String eventType;
 
+#pragma warning( push )
+#pragma warning(disable: 4996)
         PreApplyTextureAliasesScriptCompilerEvent(Material *material, AliasTextureNamePairList *aliases)
             :ScriptCompilerEvent(eventType), mMaterial(material), mAliases(aliases){}
+#pragma warning( pop )
     };
 
     class _OgreExport ProcessResourceNameScriptCompilerEvent : public ScriptCompilerEvent
@@ -530,6 +533,8 @@ namespace Ogre
         String mLanguage;
         static String eventType;
 
+#pragma warning( push )
+#pragma warning(disable: 4996)
         CreateHighLevelGpuProgramScriptCompilerEvent(const String& file, const String& name,
                                                      const String& resourceGroup, const String& source,
                                                      const String& language, GpuProgramType programType)
@@ -538,6 +543,7 @@ namespace Ogre
         {
             mType = eventType; // override
         }
+#pragma warning( pop )
     };
 
     class _OgreExport CreateGpuSharedParametersScriptCompilerEvent : public ScriptCompilerEvent

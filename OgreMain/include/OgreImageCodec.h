@@ -59,7 +59,9 @@ namespace Ogre {
             Bitwise::bswapBuffer(pData, size);
 #endif
         }
-
+		
+#pragma warning(push)
+#pragma warning(disable:4996)
     public:
         virtual ~ImageCodec();
         /** Codec return class for images. Has information about the size and the
@@ -89,7 +91,6 @@ namespace Ogre {
             }
         };
 
-
         /// @deprecated do not use
         OGRE_DEPRECATED String getDataType() const
         {
@@ -101,4 +102,5 @@ namespace Ogre {
     /** @} */
 } // namespace
 
+#pragma warning(pop)
 #endif

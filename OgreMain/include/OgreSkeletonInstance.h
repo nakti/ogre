@@ -103,6 +103,8 @@ namespace Ogre {
         void removeAllLinkedSkeletonAnimationSources(void);
         const LinkedSkeletonAnimSourceList&
                     getLinkedSkeletonAnimationSources() const override;
+#pragma warning(push)
+#pragma warning(disable:4996)
         OGRE_DEPRECATED LinkedSkeletonAnimSourceIterator
             getLinkedSkeletonAnimationSourceIterator(void) const override;
 
@@ -154,6 +156,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
+#pragma warning(pop)
 
 }
 
