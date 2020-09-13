@@ -596,7 +596,6 @@ namespace Ogre {
         const Sphere& getWorldBoundingSphere(bool derive = false) const override;
 
         EdgeData* getEdgeList(void) override;
-        bool hasEdgeList(void) override;
         const ShadowRenderableList& getShadowVolumeRenderableList(
             ShadowTechnique shadowTechnique, const Light* light,
             HardwareIndexBufferSharedPtr* indexBuffer, size_t* indexBufferUsedSize,
@@ -883,8 +882,6 @@ namespace Ogre {
         static String FACTORY_TYPE_NAME;
 
         const String& getType(void) const;
-        void destroyInstance( MovableObject* obj);
-
     };
     /** @} */
     /** @} */

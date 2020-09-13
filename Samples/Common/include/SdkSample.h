@@ -43,7 +43,6 @@ namespace OgreBites
         SdkSample()
         {
             mCameraMan = 0;
-            mControls = 0;
             mCursorWasVisible = false;
             mDragLook = false;
         }
@@ -196,14 +195,14 @@ namespace OgreBites
             Sample::_setup(window, fsLayer, overlaySys);
 
             if(mTrayMgr)
-                mControls = new AdvancedRenderControls(mTrayMgr.get(), mCamera);
+                mControls.reset(new AdvancedRenderControls(mTrayMgr.get(), mCamera));
         }
 
         virtual void _shutdown()
         {
             Sample::_shutdown();
 
-            delete mControls;
+            mControls.reset();
             mCameraMan.reset();
             mTrayMgr.reset();
 
@@ -280,7 +279,7 @@ namespace OgreBites
             w->getOverlayElement()->setMaterial(debugMat);
         }
 
-        AdvancedRenderControls* mControls; // sample details panel
+        std::unique_ptr<AdvancedRenderControls> mControls; // sample details panel
         bool mCursorWasVisible;             // was cursor visible before dialog appeared
         bool mDragLook;                     // click and drag to free-look
     };

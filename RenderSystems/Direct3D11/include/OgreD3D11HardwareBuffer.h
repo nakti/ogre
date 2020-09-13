@@ -49,8 +49,6 @@ namespace Ogre {
     protected:
         ComPtr<ID3D11Buffer> mlpD3DBuffer;
         bool mUseTempStagingBuffer;
-        D3D11HardwareBuffer* mpTempStagingBuffer;
-        bool mStagingUploadNeeded;
         BufferType mBufferType;
         D3D11Device & mDevice;
         D3D11_BUFFER_DESC mDesc;
@@ -64,7 +62,7 @@ namespace Ogre {
 
     public:
         D3D11HardwareBuffer(BufferType btype, size_t sizeBytes, HardwareBuffer::Usage usage, 
-            D3D11Device & device, bool useSystemMem, bool useShadowBuffer, bool streamOut);
+            D3D11Device & device, bool useShadowBuffer, bool streamOut);
         ~D3D11HardwareBuffer();
         /** See HardwareBuffer. */
         void readData(size_t offset, size_t length, void* pDest);

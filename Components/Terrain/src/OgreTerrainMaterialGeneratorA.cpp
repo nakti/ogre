@@ -32,13 +32,13 @@ THE SOFTWARE.
 #include "OgrePass.h"
 #include "OgreTextureUnitState.h"
 #include "OgreGpuProgramManager.h"
-#include "OgreHighLevelGpuProgramManager.h"
 #include "OgreShadowCameraSetupPSSM.h"
 #include "OgreLogManager.h"
 #include "OgreHighLevelGpuProgram.h"
 #include "OgreRoot.h"
 #include "OgreRenderSystem.h"
 #include "OgreTerrainMaterialShaderHelpers.h"
+#include "OgreTextureManager.h"
 
 #include <fstream>
 #include <string>
@@ -91,16 +91,7 @@ namespace Ogre
         , mDepthShadows(false)
         , mLowLodShadows(false)
     {
-        HighLevelGpuProgramManager& hmgr = HighLevelGpuProgramManager::getSingleton();
-
-        if (hmgr.isLanguageSupported("glsl") || hmgr.isLanguageSupported("glsles"))
-        {
-            mShaderGen = OGRE_NEW ShaderHelperGLSL();
-        }
-        else if (hmgr.isLanguageSupported("cg") || hmgr.isLanguageSupported("hlsl"))
-        {
-            mShaderGen = OGRE_NEW ShaderHelperCg();
-        }
+        mShaderGen = OGRE_NEW ShaderHelperGLSL();
     }
     //---------------------------------------------------------------------
     TerrainMaterialGeneratorA::SM2Profile::~SM2Profile()
@@ -118,7 +109,7 @@ namespace Ogre
     //---------------------------------------------------------------------
     bool TerrainMaterialGeneratorA::SM2Profile::isVertexCompressionSupported() const
     {
-        return mShaderGen && mShaderGen->isVertexCompressionSupported();
+        return true;
     }
     //---------------------------------------------------------------------
     void TerrainMaterialGeneratorA::SM2Profile::setLayerNormalMappingEnabled(bool enabled)
@@ -325,38 +316,45 @@ namespace Ogre
         HighLevelGpuProgramPtr vprog = mShaderGen->generateVertexProgram(this, terrain, tt);
         HighLevelGpuProgramPtr fprog = mShaderGen->generateFragmentProgram(this, terrain, tt);
 
-        pass->setVertexProgram(vprog->getName());
-        pass->setFragmentProgram(fprog->getName());
+        pass->setGpuProgram(GPT_VERTEX_PROGRAM, vprog);
+        pass->setGpuProgram(GPT_FRAGMENT_PROGRAM, fprog);
+
+        SamplerPtr mapSampler = TextureManager::getSingleton().createSampler();
+        mapSampler->setAddressingMode(TAM_CLAMP);
 
         if (tt == HIGH_LOD || tt == RENDER_COMPOSITE_MAP)
         {
             // global normal map
             TextureUnitState* tu = pass->createTextureUnitState();
-            tu->setTextureName(terrain->getTerrainNormalMap()->getName());
-            tu->setTextureAddressingMode(TextureUnitState::TAM_CLAMP);
+            tu->setTexture(terrain->getTerrainNormalMap());
+            tu->setSampler(mapSampler);
 
             // global colour map
             if (terrain->getGlobalColourMapEnabled() && isGlobalColourMapEnabled())
             {
-                tu = pass->createTextureUnitState(terrain->getGlobalColourMap()->getName());
-                tu->setTextureAddressingMode(TextureUnitState::TAM_CLAMP);
+                tu = pass->createTextureUnitState();
+                tu->setTexture(terrain->getGlobalColourMap());
+                tu->setSampler(mapSampler);
             }
 
             // light map
             if (isLightmapEnabled())
             {
-                tu = pass->createTextureUnitState(terrain->getLightmap()->getName());
-                tu->setTextureAddressingMode(TextureUnitState::TAM_CLAMP);
+                tu = pass->createTextureUnitState();
+                tu->setTexture(terrain->getLightmap());
+                tu->setSampler(mapSampler);
             }
 
             // blend maps
             uint maxLayers = getMaxLayers(terrain);
-            uint numBlendTextures = std::min(terrain->getBlendTextureCount(maxLayers), terrain->getBlendTextureCount());
+            uint numBlendTextures = std::min<uint8>(Terrain::getBlendTextureCount(maxLayers),
+                                                    terrain->getBlendTextures().size());
             uint numLayers = std::min(maxLayers, static_cast<uint>(terrain->getLayerCount()));
             for (uint i = 0; i < numBlendTextures; ++i)
             {
-                tu = pass->createTextureUnitState(terrain->getBlendTextureName(i));
-                tu->setTextureAddressingMode(TextureUnitState::TAM_CLAMP);
+                tu = pass->createTextureUnitState();
+                tu->setTexture(terrain->getBlendTextures()[i]);
+                tu->setSampler(mapSampler);
             }
 
             // layer textures
@@ -375,8 +373,8 @@ namespace Ogre
             // LOW_LOD textures
             // composite map
             TextureUnitState* tu = pass->createTextureUnitState();
-            tu->setTextureName(terrain->getCompositeMap()->getName());
-            tu->setTextureAddressingMode(TextureUnitState::TAM_CLAMP);
+            tu->setTexture(terrain->getCompositeMap());
+            tu->setSampler(mapSampler);
 
             // That's it!
 
@@ -577,7 +575,8 @@ namespace Ogre
                 }
 
                 uint maxLayers = prof->getMaxLayers(terrain);
-                uint numBlendTextures = std::min(terrain->getBlendTextureCount(maxLayers), terrain->getBlendTextureCount());
+                uint numBlendTextures = std::min<uint8>(Terrain::getBlendTextureCount(maxLayers),
+                                                        terrain->getBlendTextures().size());
                 uint numLayers = std::min(maxLayers, static_cast<uint>(terrain->getLayerCount()));
                 // Blend textures - sampler definitions
                 for (uint i = 0; i < numBlendTextures; ++i)
@@ -669,7 +668,7 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    String ShaderHelper::getChannel(uint idx)
+    const char* ShaderHelper::getChannel(uint idx)
     {
         uint rem = idx % 4;
         switch(rem)

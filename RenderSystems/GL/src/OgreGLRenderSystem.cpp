@@ -666,6 +666,9 @@ namespace Ogre {
         rsc->setCapability(RSC_TEXTURE_1D);
         rsc->setCapability(RSC_TEXTURE_3D);
 
+        if(GLEW_VERSION_3_0 || GLEW_EXT_texture_array)
+            rsc->setCapability(RSC_TEXTURE_2D_ARRAY);
+
         // Check for framebuffer object extension
         if(GLEW_EXT_framebuffer_object)
         {
@@ -1030,62 +1033,12 @@ namespace Ogre {
             break;
         }
     }
-
-    //---------------------------------------------------------------------
-    bool GLRenderSystem::_createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
-                                              RenderWindowList& createdWindows)
-    {
-        // Call base render system method.
-        if (false == RenderSystem::_createRenderWindows(renderWindowDescriptions, createdWindows))
-            return false;
-
-        // Simply call _createRenderWindow in a loop.
-        for (size_t i = 0; i < renderWindowDescriptions.size(); ++i)
-        {
-            const RenderWindowDescription& curRenderWindowDescription = renderWindowDescriptions[i];
-            RenderWindow* curWindow = NULL;
-
-            curWindow = _createRenderWindow(curRenderWindowDescription.name,
-                                            curRenderWindowDescription.width,
-                                            curRenderWindowDescription.height,
-                                            curRenderWindowDescription.useFullScreen,
-                                            &curRenderWindowDescription.miscParams);
-
-            createdWindows.push_back(curWindow);
-        }
-
-        return true;
-    }
     //---------------------------------------------------------------------
     RenderWindow* GLRenderSystem::_createRenderWindow(const String &name,
                                                       unsigned int width, unsigned int height, bool fullScreen,
                                                       const NameValuePairList *miscParams)
     {
-        if (mRenderTargets.find(name) != mRenderTargets.end())
-        {
-            OGRE_EXCEPT(
-                Exception::ERR_INVALIDPARAMS,
-                "Window with name '" + name + "' already exists",
-                "GLRenderSystem::_createRenderWindow" );
-        }
-        // Log a message
-        StringStream ss;
-        ss << "GLRenderSystem::_createRenderWindow \"" << name << "\", " <<
-            width << "x" << height << " ";
-        if(fullScreen)
-            ss << "fullscreen ";
-        else
-            ss << "windowed ";
-        if(miscParams)
-        {
-            ss << " miscParams: ";
-            NameValuePairList::const_iterator it;
-            for(it=miscParams->begin(); it!=miscParams->end(); ++it)
-            {
-                ss << it->first << "=" << it->second << " ";
-            }
-            LogManager::getSingleton().logMessage(ss.str());
-        }
+        RenderSystem::_createRenderWindow(name, width, height, fullScreen, miscParams);
 
         // Create the window
         RenderWindow* win = mGLSupport->newWindow(name, width, height,

@@ -503,8 +503,6 @@ namespace Ogre {
 
         /// Returns details of the edges which might be used to determine a silhouette
         EdgeData* getEdgeList(void) { return NULL; }
-        /// Returns whether the object has a valid edge list.
-        bool hasEdgeList(void) { return false; }
         /// Define a default implementation of method from ShadowCaster which implements no shadows
         const ShadowRenderableList& getShadowVolumeRenderableList(
             ShadowTechnique shadowTechnique, const Light* light, 
@@ -610,7 +608,7 @@ namespace Ogre {
             const String& name, SceneManager* manager, 
             const NameValuePairList* params = 0);
         /** Destroy an instance of the object */
-        virtual void destroyInstance(MovableObject* obj) = 0;
+        void destroyInstance(MovableObject* obj) { delete obj; }
 
         /** Does this factory require the allocation of a 'type flag', used to 
             selectively include / exclude this type from scene queries?

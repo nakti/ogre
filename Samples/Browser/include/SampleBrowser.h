@@ -34,6 +34,7 @@
 #include "OgreConfigFile.h"
 #include "OgreTechnique.h"
 #include "OgreArchiveManager.h"
+#include "SdkSample.h"
 
 #define ENABLE_SHADERS_CACHE 1
 
@@ -137,7 +138,8 @@ namespace OgreBites
 
                 try
                 {
-                    s->_setupTrays(mWindow);
+                    if(dynamic_cast<SdkSample*>(s))
+                        s->_setupTrays(mWindow);
                     SampleContext::runSample(s);
                 }
                 catch (Ogre::Exception& e)   // if failed to start, show error and fall back to menu
@@ -427,7 +429,7 @@ namespace OgreBites
                         bp->setHorizontalAlignment(Ogre::GHA_RIGHT);
                         bp->setVerticalAlignment(Ogre::GVA_CENTER);
                         bp->setMaterialName(name);
-                        bp->getUserObjectBindings().setUserAny(Ogre::Any(*i));
+                        bp->getUserObjectBindings().setUserAny(*i);
                         mTrayMgr->getTraysLayer()->add2D(bp);
 
                         // add sample thumbnail and title

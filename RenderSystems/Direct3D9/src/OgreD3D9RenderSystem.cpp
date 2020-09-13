@@ -430,7 +430,7 @@ namespace Ogre
         optMultiDeviceMemHint.name = "Multi device memory hint";
         optMultiDeviceMemHint.possibleValues.push_back("Use minimum system memory");
         optMultiDeviceMemHint.possibleValues.push_back("Auto hardware buffers management");
-        optMultiDeviceMemHint.currentValue = "Use minimum system memory";
+        optMultiDeviceMemHint.currentValue = optMultiDeviceMemHint.possibleValues[1];
         optMultiDeviceMemHint.immutable = false;
 
         optEnableFixedPipeline.name = "Fixed Pipeline Enabled";
@@ -827,38 +827,8 @@ namespace Ogre
     RenderWindow* D3D9RenderSystem::_createRenderWindow(const String &name, 
         unsigned int width, unsigned int height, bool fullScreen,
         const NameValuePairList *miscParams)
-    {       
-        // Log a message
-        StringStream ss;
-        ss << "D3D9RenderSystem::_createRenderWindow \"" << name << "\", " <<
-            width << "x" << height << " ";
-
-        if(fullScreen)
-            ss << "fullscreen ";
-        else
-            ss << "windowed ";
-
-        if(miscParams)
-        {
-            ss << " miscParams: ";
-            NameValuePairList::const_iterator it;
-            for(it=miscParams->begin(); it!=miscParams->end(); ++it)
-            {
-                ss << it->first << "=" << it->second << " ";
-            }
-            LogManager::getSingleton().logMessage(ss.str());
-        }
-
-        String msg;
-
-        // Make sure we don't already have a render target of the 
-        // same name as the one supplied
-        if( mRenderTargets.find( name ) != mRenderTargets.end() )
-        {
-            msg = "A render target of the same name '" + name + "' already "
-                "exists.  You cannot create a new window with this name.";
-            OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, msg, "D3D9RenderSystem::_createRenderWindow" );
-        }
+    {
+        RenderSystem::_createRenderWindow(name, width, height, fullScreen, miscParams);
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
         // Stereo driver must be created before device is created
@@ -900,33 +870,7 @@ namespace Ogre
 #endif
 
         return renderWindow;
-    }   
-    //---------------------------------------------------------------------
-    bool D3D9RenderSystem::_createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions, 
-        RenderWindowList& createdWindows)
-    {
-        // Call base render system method.
-        if (false == RenderSystem::_createRenderWindows(renderWindowDescriptions, createdWindows))
-            return false;
-
-        // Simply call _createRenderWindow in a loop.
-        for (size_t i = 0; i < renderWindowDescriptions.size(); ++i)
-        {
-            const RenderWindowDescription& curRenderWindowDescription = renderWindowDescriptions[i];            
-            RenderWindow* curWindow = NULL;
-
-            curWindow = _createRenderWindow(curRenderWindowDescription.name, 
-                curRenderWindowDescription.width, 
-                curRenderWindowDescription.height, 
-                curRenderWindowDescription.useFullScreen, 
-                &curRenderWindowDescription.miscParams);
-                            
-            createdWindows.push_back(curWindow);                                            
-        }
-        
-        return true;
     }
-
     //---------------------------------------------------------------------
     RenderSystemCapabilities* D3D9RenderSystem::updateRenderSystemCapabilities(D3D9RenderWindow* renderWindow)
     {           
@@ -1268,7 +1212,7 @@ namespace Ogre
         return rsc;
     }
     //---------------------------------------------------------------------
-    void D3D9RenderSystem::convertVertexShaderCaps(RenderSystemCapabilities* rsc) const
+    void D3D9RenderSystem::convertVertexShaderCaps(RenderSystemCapabilities* rsc)
     {
         ushort major = 0xFF;
         ushort minor = 0xFF;
@@ -1364,6 +1308,8 @@ namespace Ogre
             rsc->addShaderProfile("vs_1_1");
             rsc->setCapability(RSC_VERTEX_PROGRAM);
         }
+
+        mNativeShadingLanguageVersion = major;
     }
     //---------------------------------------------------------------------
     void D3D9RenderSystem::convertPixelShaderCaps(RenderSystemCapabilities* rsc) const
@@ -3458,6 +3404,8 @@ namespace Ogre
             {
                 OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Error calling SetPixelShader", "D3D9RenderSystem::bindGpuProgram");
             }
+            // disable FFP fog, as it gets still applied even in presence of shader. Matching other render-systems here.
+            hr = __SetRenderState(D3DRS_FOGENABLE, FALSE);
             break;
         };
 

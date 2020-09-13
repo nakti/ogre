@@ -70,8 +70,8 @@ if(DEFINED ENV{ANDROID})
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
     set(CROSS
         -DANDROID_PLATFORM=android-16
-        -DANDROID_NDK=${CMAKE_CURRENT_SOURCE_DIR}/android-ndk-r17
-        -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/android-ndk-r17/build/cmake/android.toolchain.cmake
+        -DANDROID_NDK=${CMAKE_CURRENT_SOURCE_DIR}/android-ndk-r18b
+        -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/android-ndk-r18b/build/cmake/android.toolchain.cmake
         -DANDROID_ARM_NEON=TRUE
         -DANDROID_ABI=arm64-v8a)
 
@@ -95,11 +95,20 @@ if(DEFINED ENV{ANDROID})
     if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/android-ndk-r17)
         message(STATUS "Downloading Android NDK")
         file(DOWNLOAD
-            http://dl.google.com/android/repository/android-ndk-r17-linux-x86_64.zip
-            ./android-ndk-r17-linux-x86_64.zip)
+            https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip
+            ./android-ndk-r18b-linux-x86_64.zip)
         message(STATUS "Extracting Android NDK")
-        execute_process(COMMAND unzip android-ndk-r17-linux-x86_64.zip OUTPUT_QUIET)
+        execute_process(COMMAND unzip android-ndk-r18b-linux-x86_64.zip OUTPUT_QUIET)
     endif()
+endif()
+
+if("$ENV{TRAVIS_OS_NAME}" STREQUAL "linux" AND NOT DEFINED ENV{ANDROID})
+    message(STATUS "Downloading Doxygen")
+    file(DOWNLOAD
+        https://downloads.sourceforge.net/project/doxygen/rel-1.8.17/doxygen-1.8.17.linux.bin.tar.gz
+        ./doxygen-1.8.17.linux.bin.tar.gz)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf doxygen-1.8.17.linux.bin.tar.gz OUTPUT_QUIET)
+    set(OTHER -DDOXYGEN_EXECUTABLE=${CMAKE_CURRENT_SOURCE_DIR}/doxygen-1.8.17/bin/doxygen)
 endif()
 
 file(MAKE_DIRECTORY build)

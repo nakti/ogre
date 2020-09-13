@@ -382,10 +382,8 @@ namespace Ogre {
 
             // Get the index at this biased depth
             ushort newMeshLodIndex = mMesh->getLodIndex(biasedMeshLodValue);
-            // Apply maximum detail restriction (remember lower = higher detail)
-            newMeshLodIndex = std::max<ushort>(mMaxMeshLodIndex, newMeshLodIndex);
-            // Apply minimum detail restriction (remember higher = lower detail)
-            newMeshLodIndex = std::min<ushort>(mMinMeshLodIndex, newMeshLodIndex);
+            // Apply maximum detail restriction (remember lower = higher detail, higher = lower detail)
+            newMeshLodIndex = Math::Clamp(newMeshLodIndex, mMaxMeshLodIndex, mMinMeshLodIndex);
 
             // Construct event object
             EntityMeshLodChangedEvent evt;
@@ -426,10 +424,8 @@ namespace Ogre {
 
                 // Get the index at this biased depth
                 unsigned short idx = material->getLodIndex(biasedMaterialLodValue);
-                // Apply maximum detail restriction (remember lower = higher detail)
-                idx = std::max(mMaxMaterialLodIndex, idx);
-                // Apply minimum detail restriction (remember higher = lower detail)
-                idx = std::min(mMinMaterialLodIndex, idx);
+                // Apply maximum detail restriction (remember lower = higher detail, higher = lower detail)
+                idx = Math::Clamp(idx, mMaxMeshLodIndex, mMinMeshLodIndex);
 
                 // Construct event object
                 EntityMaterialLodChangedEvent subEntEvt;
@@ -1738,16 +1734,6 @@ namespace Ogre {
         return mMesh->getEdgeList(mMeshLodIndex);
     }
     //-----------------------------------------------------------------------
-    bool Entity::hasEdgeList(void)
-    {
-#if OGRE_NO_MESHLOD
-        unsigned short mMeshLodIndex = 0;
-#endif
-        // check if mesh has an edge list attached
-        // give mesh a chance to built it if scheduled
-        return (mMesh->getEdgeList(mMeshLodIndex) != NULL);
-    }
-    //-----------------------------------------------------------------------
     bool Entity::isHardwareAnimationEnabled(void)
     {
         //find whether the entity has hardware animation for the current active sceme
@@ -2531,11 +2517,4 @@ namespace Ogre {
         return OGRE_NEW Entity(name, pMesh);
 
     }
-    //-----------------------------------------------------------------------
-    void EntityFactory::destroyInstance( MovableObject* obj)
-    {
-        OGRE_DELETE obj;
-    }
-
-
 }

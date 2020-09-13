@@ -39,28 +39,17 @@ namespace Ogre {
     //---------------------------------------------------------------------
     D3D9HardwareIndexBuffer::D3D9HardwareIndexBuffer(HardwareBufferManagerBase* mgr, HardwareIndexBuffer::IndexType idxType, 
         size_t numIndexes, HardwareBuffer::Usage usage,
-        bool useSystemMemory, bool useShadowBuffer)
-        : HardwareIndexBuffer(mgr, idxType, numIndexes, usage, useSystemMemory, 
+        bool useShadowBuffer)
+        : HardwareIndexBuffer(mgr, idxType, numIndexes, usage, false,
         useShadowBuffer || 
         // Allocate the system memory buffer for restoring after device lost.
-        (((usage & HardwareBuffer::HBU_WRITE_ONLY) != 0) && 
+        (((usage & HBU_DETAIL_WRITE_ONLY) != 0) &&
             D3D9RenderSystem::getResourceManager()->getAutoHardwareBufferManagement()))
    {
         D3D9_DEVICE_ACCESS_CRITICAL_SECTION
 
-        D3DPOOL eResourcePool;
-
-#if OGRE_D3D_MANAGE_BUFFERS
-        eResourcePool = useSystemMemory? D3DPOOL_SYSTEMMEM : 
-            // If not system mem, use managed pool UNLESS buffer is discardable
-            // if discardable, keeping the software backing is expensive
-            ((usage & HardwareBuffer::HBU_DISCARDABLE) || (D3D9RenderSystem::isDirectX9Ex())) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
-#else
-        eResourcePool = useSystemMemory? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT;
-#endif
-
         // Set the desired memory pool.
-        mBufferDesc.Pool = eResourcePool;
+        mBufferDesc.Pool = usage == HBU_CPU_ONLY ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT;
                 
         // Set source buffer to NULL.
         mSourceBuffer = NULL;
@@ -366,7 +355,7 @@ namespace Ogre {
                 updateBufferResources(shadowData, bufferResources);
                 mShadowBuffer->unlock();
             }
-            else if (mSourceBuffer != bufferResources && (mUsage & HardwareBuffer::HBU_WRITE_ONLY) == 0)
+            else if (mSourceBuffer != bufferResources && (mUsage & HBU_DETAIL_WRITE_ONLY) == 0)
             {               
                 mSourceBuffer->mLockOptions = HBL_READ_ONLY;
                 mSourceLockedBytes = _lockBuffer(mSourceBuffer, bufferResources->mLockOffset, bufferResources->mLockLength);

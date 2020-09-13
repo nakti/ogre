@@ -31,6 +31,13 @@ ApplicationContextBase::ApplicationContextBase(const Ogre::String& appName)
 {
     mAppName = appName;
     mFSLayer = new Ogre::FileSystemLayer(mAppName, folderName);
+
+    if (char* val = getenv("OGRE_CONFIG_DIR"))
+    {
+        Ogre::String configDir = Ogre::StringUtil::standardisePath(val);
+        mFSLayer->setConfigPaths({ configDir });
+    }
+
     mRoot = NULL;
     mOverlaySystem = NULL;
     mFirstRun = true;
@@ -170,7 +177,7 @@ void ApplicationContextBase::setup()
 
 void ApplicationContextBase::createRoot()
 {
-#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
     mRoot = OGRE_NEW Ogre::Root("");
 #else
     Ogre::String pluginsPath;
@@ -195,7 +202,7 @@ void ApplicationContextBase::createRoot()
 
 bool ApplicationContextBase::oneTimeConfig()
 {
-#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
     mRoot->setRenderSystem(mRoot->getAvailableRenderers().at(0));
 #else
     if (!mRoot->restoreConfig()) {
@@ -398,11 +405,12 @@ void ApplicationContextBase::locateResources()
     auto& rgm = Ogre::ResourceGroupManager::getSingleton();
     // load resource paths from config file
     Ogre::ConfigFile cf;
+    Ogre::String resourcesPath = mFSLayer->getConfigFilePath("resources.cfg");
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
     Ogre::Archive* apk = Ogre::ArchiveManager::getSingleton().load("", "APKFileSystem", true);
-    cf.load(apk->open(mFSLayer->getConfigFilePath("resources.cfg")));
+    cf.load(apk->open(resourcesPath));
 #else
-    Ogre::String resourcesPath = mFSLayer->getConfigFilePath("resources.cfg");
+
     if (Ogre::FileSystemLayer::fileExists(resourcesPath) || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN)
     {
         cf.load(resourcesPath);
@@ -426,7 +434,18 @@ void ApplicationContextBase::locateResources()
         for (i = settings.begin(); i != settings.end(); i++)
         {
             type = i->first;
-            arch = Ogre::FileSystemLayer::resolveBundlePath(i->second);
+            arch = i->second;
+
+            Ogre::StringUtil::trim(arch);
+            if (arch.empty() || arch[0] == '.')
+            {
+                // resolve relative path with regards to configfile
+                Ogre::String baseDir, filename;
+                Ogre::StringUtil::splitFilename(resourcesPath, filename, baseDir);
+                arch = baseDir + arch;
+            }
+
+            arch = Ogre::FileSystemLayer::resolveBundlePath(arch);
 
             rgm.addResourceLocation(arch, type, sec);
         }
@@ -477,15 +496,16 @@ void ApplicationContextBase::locateResources()
 
     bool use_HLSL_Cg_shared = hasCgPlugin || Ogre::GpuProgramManager::getSingleton().isSyntaxSupported("hlsl");
 
+    // unified shaders are written in GLSL dialect
+    rgm.addResourceLocation(arch + "/materials/programs/GLSL", type, sec);
+
     // Add locations for supported shader languages
     if(Ogre::GpuProgramManager::getSingleton().isSyntaxSupported("glsles"))
     {
-        rgm.addResourceLocation(arch + "/materials/programs/GLSL", type, sec);
         rgm.addResourceLocation(arch + "/materials/programs/GLSLES", type, sec);
     }
     else if(Ogre::GpuProgramManager::getSingleton().isSyntaxSupported("glsl"))
     {
-        rgm.addResourceLocation(arch + "/materials/programs/GLSL", type, sec);
         rgm.addResourceLocation(arch + "/materials/programs/GLSL120", type, sec);
 
         if(Ogre::GpuProgramManager::getSingleton().isSyntaxSupported("glsl150"))

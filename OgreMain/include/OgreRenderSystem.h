@@ -409,24 +409,10 @@ namespace Ogre
         | maxDepthBufferSize | Positive integer (usually 0, 16, 24) | 16 | EGL_DEPTH_SIZE | Android Specific |
         */
         virtual RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height, 
-            bool fullScreen, const NameValuePairList *miscParams = 0) = 0;
+            bool fullScreen, const NameValuePairList *miscParams = 0);
 
-        /** Creates multiple rendering windows.     
-        @param
-        renderWindowDescriptions Array of structures containing the descriptions of each render window.
-        The structure's members are the same as the parameters of _createRenderWindow:
-        * name
-        * width
-        * height
-        * fullScreen
-        * miscParams
-        See _createRenderWindow for details about each member.      
-        @param
-        createdWindows This array will hold the created render windows.
-        @return
-        true on success.        
-        */
-        virtual bool _createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions, 
+        /// @deprecated call _createRenderWindow multiple times
+        OGRE_DEPRECATED bool _createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
             RenderWindowList& createdWindows);
 
         
@@ -790,19 +776,13 @@ namespace Ogre
         /** Reports the number of vertices passed to the renderer since the last _beginGeometryCount call. */
         virtual unsigned int _getVertexCount(void) const;
 
-        /** Generates a packed data version of the passed in ColourValue suitable for
-        use as with this RenderSystem.
-        @remarks
-        Since different render systems have different colour data formats (eg
-        RGBA for GL, ARGB for D3D) this method allows you to use 1 method for all.
-        @param colour The colour to convert
-        @param pDest Pointer to location to put the result.
-        */
-        void convertColourValue(const ColourValue& colour, uint32* pDest);
-        /** Get the native VertexElementType for a compact 32-bit colour value
-        for this rendersystem.
-        */
-        virtual VertexElementType getColourVertexElementType(void) const = 0;
+        /// @deprecated use ColourValue::getAsABGR()
+        OGRE_DEPRECATED void convertColourValue(const ColourValue& colour, uint32* pDest);
+        /// @deprecated assume VET_UBYTE4_NORM
+        OGRE_DEPRECATED virtual VertexElementType getColourVertexElementType(void) const
+        {
+            return VET_COLOUR_ABGR;
+        }
 
         /** Converts a uniform projection matrix to suitable for this render system.
         @remarks

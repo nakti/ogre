@@ -196,6 +196,31 @@ if(OGRE_BUILD_DEPENDENCIES AND NOT EXISTS ${OGREDEPS_PATH})
         execute_process(COMMAND ${CMAKE_COMMAND}
             --build ${PROJECT_BINARY_DIR}/SDL2-build ${BUILD_COMMAND_OPTS})
     endif()
+
+    if(MSVC OR MINGW) # other platforms dont need this
+      message(STATUS "Building Assimp")
+      file(DOWNLOAD
+          https://github.com/assimp/assimp/archive/v5.0.1.tar.gz
+          ${PROJECT_BINARY_DIR}/v5.0.1.tar.gz)
+      execute_process(COMMAND ${CMAKE_COMMAND}
+          -E tar xf v5.0.1.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+      execute_process(COMMAND ${BUILD_COMMAND_COMMON}
+          -DZLIB_ROOT=${OGREDEPS_PATH}
+          -DBUILD_SHARED_LIBS=OFF
+          -DASSIMP_BUILD_TESTS=OFF
+          -DASSIMP_NO_EXPORT=TRUE
+          -DASSIMP_BUILD_OGRE_IMPORTER=OFF
+          -DASSIMP_BUILD_ASSIMP_TOOLS=OFF
+          -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE # this will be linked into a shared lib
+          ${PROJECT_BINARY_DIR}/assimp-5.0.1
+          WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/assimp-5.0.1)
+      execute_process(COMMAND ${CMAKE_COMMAND}
+        --build ${PROJECT_BINARY_DIR}/assimp-5.0.1 ${BUILD_COMMAND_OPTS})
+      # RelWithDebInfo has Release ABI
+      if(NOT OGRE_DEBUG_MODE)
+        file(REMOVE ${OGREDEPS_PATH}/lib/cmake/assimp-5.0/assimpTargets-debug.cmake)
+      endif()
+    endif()
 endif()
 
 #######################################################################
@@ -283,6 +308,26 @@ macro_log_feature(PYTHONLIBS_FOUND "Python" "Language bindings to use OGRE from 
 # SWIG
 find_package(SWIG 3.0.8 QUIET)
 macro_log_feature(SWIG_FOUND "SWIG" "Language bindings (Python, Java, C#) for OGRE" "http://www.swig.org/" FALSE "" "")
+
+# pugixml
+find_package(pugixml QUIET)
+macro_log_feature(pugixml_FOUND "pugixml" "Needed for XMLConverter and DotScene Plugin" "https://pugixml.org/" FALSE "" "")
+
+# Assimp
+find_package(ASSIMP QUIET)
+macro_log_feature(ASSIMP_FOUND "Assimp" "Needed for the AssimpLoader Plugin" "https://www.assimp.org/" FALSE "" "")
+
+if(ASSIMP_FOUND)
+  # workaround horribly broken assimp cmake
+  add_library(fix::assimp INTERFACE IMPORTED)
+  set_target_properties(fix::assimp PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${ASSIMP_LIBRARIES}"
+      INTERFACE_LINK_DIRECTORIES "${ASSIMP_LIBRARY_DIRS}"
+  )
+  if(EXISTS "${ASSIMP_INCLUDE_DIRS}")
+    set_target_properties(fix::assimp PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${ASSIMP_INCLUDE_DIRS}")
+  endif()
+endif()
 
 #######################################################################
 # Samples dependencies

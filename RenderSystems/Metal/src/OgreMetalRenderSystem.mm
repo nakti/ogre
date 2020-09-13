@@ -195,7 +195,7 @@ namespace Ogre
         rsc->setCapability(RSC_COMPUTE_PROGRAM);
         rsc->setCapability(RSC_HW_GAMMA);
         // rsc->setCapability(RSC_TEXTURE_GATHER);
-        // rsc->setCapability(RSC_TEXTURE_2D_ARRAY);
+        rsc->setCapability(RSC_TEXTURE_2D_ARRAY);
         // rsc->setCapability(RSC_CONST_BUFFER_SLOTS_IN_SHADER);
 
         //These don't make sense on Metal, so just use flexible defaults.
@@ -294,6 +294,7 @@ namespace Ogre
                                                          bool fullScreen,
                                                          const NameValuePairList *miscParams )
     {
+        RenderSystem::_createRenderWindow(name, width, height, fullScreen, miscParams);
         if( !mInitialized )
         {
             // enable debug layer
@@ -762,11 +763,6 @@ namespace Ogre
         [mActiveRenderEncoder setDepthBias:constantBias
                                      slopeScale:slopeScaleBias
                                      clamp:0.0f];
-    }
-    //-------------------------------------------------------------------------
-    VertexElementType MetalRenderSystem::getColourVertexElementType(void) const
-    {
-        return VET_COLOUR_ARGB;
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::_convertProjectionMatrix( const Matrix4& matrix, Matrix4& dest,

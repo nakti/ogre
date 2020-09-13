@@ -45,7 +45,7 @@ namespace Ogre
     *  @{
     */
     /** \defgroup Terrain Terrain
-    *   Editable %Terrain System with LOD, serialization and \ref Paging support
+    *   Editable %Terrain System with LOD @cite de2000fast, serialization and \ref Paging support
     *  @{
     */
 
@@ -119,8 +119,7 @@ namespace Ogre
     <tr>
         <td>Packed blend texture data</td>
         <td>uint8*</td>
-        <td>layerCount-1 sets of blend texture data interleaved as either RGB or RGBA 
-            depending on layer count</td>
+        <td>layerCount-1 sets of blend texture data interleaved as RGBA</td>
     </tr>
     <tr>
         <td>Optional derived map data</td>
@@ -1359,17 +1358,20 @@ namespace Ogre
         */
         uint8 getBlendTextureIndex(uint8 layerIndex) const;
 
-        /// Get the number of blend textures in use
-        uint8 getBlendTextureCount() const;
+        /// @deprecated use getBlendTextures()
+        OGRE_DEPRECATED uint8 getBlendTextureCount() const;
         /// Get the number of blend textures needed for a given number of layers
-        uint8 getBlendTextureCount(uint8 numLayers) const;
+        static uint8 getBlendTextureCount(uint8 numLayers) { return ((numLayers - 2) / 4) + 1; }
 
 
-        /** Get the name of the packed blend texture at a specific index.
-        @param textureIndex This is the blend texture index, not the layer index
+        /** Get the packed blend textures.
+        @note These are indexed by the blend texture index, not the layer index
             (multiple layers will share a blend texture)
         */
-        const String& getBlendTextureName(uint8 textureIndex) const;
+        const std::vector<TexturePtr>& getBlendTextures() const { return mBlendTextureList; }
+
+        /// @deprecated use getBlendTextures()
+        OGRE_DEPRECATED const String& getBlendTextureName(uint8 textureIndex) const;
 
         /** Set whether a global colour map is enabled. 
         @remarks
@@ -1672,7 +1674,6 @@ namespace Ogre
         void checkLayers(bool includeGPUResources);
         void checkDeclaration();
         void deriveUVMultipliers();
-        PixelFormat getBlendTextureFormat(uint8 textureIndex, uint8 numLayers) const;
 
         void updateDerivedDataImpl(const Rect& rect, const Rect& lightmapExtraRect, bool synchronous, uint8 typeMask);
 

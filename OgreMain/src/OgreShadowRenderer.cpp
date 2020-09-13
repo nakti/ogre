@@ -658,6 +658,7 @@ void SceneManager::ShadowRenderer::ensureShadowTexturesCreated()
         mBorderSampler = TextureManager::getSingleton().createSampler();
         mBorderSampler->setAddressingMode(TAM_BORDER);
         mBorderSampler->setBorderColour(ColourValue::White);
+        mBorderSampler->setFiltering(FT_MIP, FO_NONE); // we do not have mips. GLES2 is particularly picky here.
     }
 
     if (mShadowTextureConfigDirty)
@@ -1314,7 +1315,7 @@ void SceneManager::ShadowRenderer::setShadowTextureCasterMaterial(const Material
     else
     {
 
-        mShadowTextureCustomCasterPass = mat->getBestTechnique()->getPass(0);
+        mShadowTextureCustomCasterPass = mat->getTechnique(0)->getPass(0);
         if (mShadowTextureCustomCasterPass->hasVertexProgram())
         {
             // Save vertex program and params in case we have to swap them out
@@ -1612,6 +1613,8 @@ void SceneManager::ShadowRenderer::initShadowVolumeMaterials()
             mShadowCasterPlainBlackPass->setDiffuse(ColourValue::Black);
             mShadowCasterPlainBlackPass->setSelfIllumination(ColourValue::Black);
             mShadowCasterPlainBlackPass->setSpecular(ColourValue::Black);
+            // set depth bias in case this is used with PF_DEPTH
+            mShadowCasterPlainBlackPass->setDepthBias(-1, -1);
             // Override fog
             mShadowCasterPlainBlackPass->setFog(true, FOG_NONE);
             // no textures or anything else, we will bind vertex programs
@@ -1632,8 +1635,6 @@ void SceneManager::ShadowRenderer::initShadowVolumeMaterials()
             mShadowReceiverPass = matShadRec->getTechnique(0)->getPass(0);
             // Don't set lighting and blending modes here, depends on additive / modulative
             TextureUnitState* t = mShadowReceiverPass->createTextureUnitState();
-            t->setTextureAddressingMode(TextureUnitState::TAM_CLAMP);
-            t->setTextureFiltering(FT_MIP, FO_NONE); // we do not have mips. GLES2 is particularly picky here.
             t->setProjectiveTexturing(true, NULL); // will be set later, but the RTSS needs to know about this
         }
         else
@@ -1795,9 +1796,8 @@ const Pass* SceneManager::ShadowRenderer::deriveShadowCasterPass(const Pass* pas
             }
         }
 
-        // handle the case where there is no fixed pipeline support
-        if( retPass->getParent()->getParent()->getCompilationRequired() )
-            retPass->getParent()->getParent()->compile();
+        // give the RTSS a chance to generate a better technique
+        retPass->getParent()->getParent()->load();
 
         Technique* btech = retPass->getParent()->getParent()->getBestTechnique();
         if( btech )

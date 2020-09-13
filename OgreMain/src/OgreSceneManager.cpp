@@ -58,7 +58,9 @@ mName(name),
 mLastRenderQueueInvocationCustom(false),
 mCameraInProgress(0),
 mCurrentViewport(0),
-mSkyRenderer(this),
+mSkyPlane(this),
+mSkyBox(this),
+mSkyDome(this),
 mFogMode(FOG_NONE),
 mFogColour(),
 mFogStart(0),
@@ -100,7 +102,6 @@ mGpuParamsDirty((uint16)GPV_ALL)
 
     // create the auto param data source instance
     mAutoParamDataSource.reset(createAutoParamDataSource());
-
 }
 //-----------------------------------------------------------------------
 SceneManager::~SceneManager()
@@ -710,8 +711,6 @@ void SceneManager::clearScene(void)
     // Clear animations
     destroyAllAnimations();
 
-    mSkyRenderer.clear();
-
     // Clear render queue, empty completely
     if (mRenderQueue)
         mRenderQueue->clear(true);
@@ -1194,7 +1193,7 @@ void SceneManager::prepareRenderQueue(void)
 
             // Default all the queue groups that are there, new ones will be created
             // with defaults too
-            for (size_t i = 0; i < RENDER_QUEUE_MAX; ++i)
+            for (size_t i = 0; i < RENDER_QUEUE_COUNT; ++i)
             {
                 if(!q->_getQueueGroups()[i])
                     continue;
@@ -1283,7 +1282,9 @@ void SceneManager::_renderScene(Camera* camera, Viewport* vp, bool includeOverla
             }
 #ifdef OGRE_NODELESS_POSITIONING
             // Auto-track camera if required
+            OGRE_IGNORE_DEPRECATED_BEGIN
             camera->_autoTrack();
+            OGRE_IGNORE_DEPRECATED_END
 #endif
         }
 
@@ -1373,11 +1374,6 @@ void SceneManager::_renderScene(Camera* camera, Viewport* vp, bool includeOverla
             firePostFindVisibleObjects(vp);
 
             mAutoParamDataSource->setMainCamBoundsInfo(&(camVisObjIt->second));
-        }
-        // Queue skies, if viewport seems it
-        if (vp->getSkiesEnabled() && mFindVisibleObjects && mIlluminationStage != IRS_RENDER_TO_TEXTURE)
-        {
-            mSkyRenderer.queueSkiesForRendering(getRenderQueue(), camera);
         }
     } // end lock on scene graph mutex
 
@@ -1539,17 +1535,16 @@ void SceneManager::setSkyPlane(
                                int xsegments, int ysegments,
                                const String& groupName)
 {
-    mSkyRenderer.setSkyPlane(
-        enable, plane, materialName, gscale, tiling,
-        static_cast<uint8>(drawFirst ? RENDER_QUEUE_SKIES_EARLY : RENDER_QUEUE_SKIES_LATE), bow,
-        xsegments, ysegments, groupName);
+    _setSkyPlane(enable, plane, materialName, gscale, tiling,
+                 drawFirst ? RENDER_QUEUE_SKIES_EARLY : RENDER_QUEUE_SKIES_LATE, bow, xsegments, ysegments,
+                 groupName);
 }
 
 void SceneManager::_setSkyPlane(bool enable, const Plane& plane, const String& materialName,
                                 Real gscale, Real tiling, uint8 renderQueue, Real bow,
                                 int xsegments, int ysegments, const String& groupName)
 {
-    mSkyRenderer.setSkyPlane(enable, plane, materialName, gscale, tiling, renderQueue, bow,
+    mSkyPlane.setSkyPlane(enable, plane, materialName, gscale, tiling, renderQueue, bow,
                              xsegments, ysegments, groupName);
 }
 
@@ -1562,16 +1557,15 @@ void SceneManager::setSkyBox(
                              const Quaternion& orientation,
                              const String& groupName)
 {
-    mSkyRenderer.setSkyBox(enable, materialName, distance,
-        static_cast<uint8>(drawFirst?RENDER_QUEUE_SKIES_EARLY: RENDER_QUEUE_SKIES_LATE), 
-        orientation, groupName);
+    _setSkyBox(enable, materialName, distance,
+               drawFirst ? RENDER_QUEUE_SKIES_EARLY : RENDER_QUEUE_SKIES_LATE, orientation, groupName);
 }
 
 void SceneManager::_setSkyBox(bool enable, const String& materialName, Real distance,
                               uint8 renderQueue, const Quaternion& orientation,
                               const String& groupName)
 {
-    mSkyRenderer.setSkyBox(enable, materialName, distance, renderQueue, orientation, groupName);
+    mSkyBox.setSkyBox(enable, materialName, distance, renderQueue, orientation, groupName);
 }
 
 //-----------------------------------------------------------------------
@@ -1586,9 +1580,9 @@ void SceneManager::setSkyDome(
                               int xsegments, int ysegments, int ySegmentsToKeep,
                               const String& groupName)
 {
-    mSkyRenderer.setSkyDome(enable, materialName, curvature, tiling, distance,
-        static_cast<uint8>(drawFirst?RENDER_QUEUE_SKIES_EARLY: RENDER_QUEUE_SKIES_LATE), 
-        orientation, xsegments, ysegments, ySegmentsToKeep, groupName);
+    _setSkyDome(enable, materialName, curvature, tiling, distance,
+                drawFirst ? RENDER_QUEUE_SKIES_EARLY : RENDER_QUEUE_SKIES_LATE, orientation, xsegments,
+                ysegments, ySegmentsToKeep, groupName);
 }
 
 void SceneManager::_setSkyDome(bool enable, const String& materialName, Real curvature, Real tiling,
@@ -1596,7 +1590,7 @@ void SceneManager::_setSkyDome(bool enable, const String& materialName, Real cur
                                int xsegments, int ysegments, int ysegments_keep,
                                const String& groupName)
 {
-    mSkyRenderer.setSkyDome(enable, materialName, curvature, tiling, distance, renderQueue,
+    mSkyDome.setSkyDome(enable, materialName, curvature, tiling, distance, renderQueue,
                             orientation, xsegments, ysegments, ysegments_keep, groupName);
 }
 
@@ -1697,7 +1691,7 @@ void SceneManager::renderVisibleObjectsDefaultSequence(void)
     // Render each separate queue
     const RenderQueue::RenderQueueGroupMap& groups = getRenderQueue()->_getQueueGroups();
 
-    for (uint8 qId = 0; qId < RENDER_QUEUE_MAX; ++qId)
+    for (uint8 qId = 0; qId < RENDER_QUEUE_COUNT; ++qId)
     {
         if(!groups[qId])
             continue;

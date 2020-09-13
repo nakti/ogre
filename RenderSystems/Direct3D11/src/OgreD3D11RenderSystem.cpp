@@ -714,6 +714,7 @@ namespace Ogre
 		unsigned int width, unsigned int height, bool fullScreen,
 		const NameValuePairList *miscParams)
 	{
+        RenderSystem::_createRenderWindow(name, width, height, fullScreen, miscParams);
 
 		// Check we're not creating a secondary window when the primary
 		// was fullscreen
@@ -722,36 +723,6 @@ namespace Ogre
 			OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
 				"Cannot create secondary windows not in full screen when the primary is full screen",
 				"D3D11RenderSystem::_createRenderWindow");
-		}
-
-		// Log a message
-		StringStream ss;
-		ss << "D3D11RenderSystem::_createRenderWindow \"" << name << "\", " <<
-			width << "x" << height << " ";
-		if (fullScreen)
-			ss << "fullscreen ";
-		else
-			ss << "windowed ";
-		if (miscParams)
-		{
-			ss << " miscParams: ";
-			NameValuePairList::const_iterator it;
-			for (it = miscParams->begin(); it != miscParams->end(); ++it)
-			{
-				ss << it->first << "=" << it->second << " ";
-			}
-			LogManager::getSingleton().logMessage(ss.str());
-		}
-
-		String msg;
-
-		// Make sure we don't already have a render target of the 
-		// sam name as the one supplied
-		if (mRenderTargets.find(name) != mRenderTargets.end())
-		{
-			msg = "A render target of the same name '" + name + "' already "
-				"exists.  You cannot create a new window with this name.";
-			OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, msg, "D3D11RenderSystem::_createRenderWindow");
 		}
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
@@ -805,6 +776,8 @@ namespace Ogre
 			if (mHLSLProgramFactory == NULL)
 				mHLSLProgramFactory = new D3D11HLSLProgramFactory(mDevice);
 			mRealCapabilities = createRenderSystemCapabilities();
+
+            mNativeShadingLanguageVersion = 4;
 
 			// if we are using custom capabilities, then 
 			// mCurrentCapabilities has already been loaded
@@ -935,6 +908,7 @@ namespace Ogre
         rsc->setCapability(RSC_INFINITE_FAR_PLANE);
 
         rsc->setCapability(RSC_TEXTURE_3D);
+        rsc->setCapability(RSC_TEXTURE_2D_ARRAY);
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
         {
             rsc->setCapability(RSC_NON_POWER_OF_2_TEXTURES);
@@ -1241,14 +1215,8 @@ namespace Ogre
             descDepth.MiscFlags     |= D3D11_RESOURCE_MISC_TEXTURECUBE;
         }
 
-        HRESULT hr = mDevice->CreateTexture2D( &descDepth, NULL, pDepthStencil.ReleaseAndGetAddressOf() );
-        if( FAILED(hr) || mDevice.isError())
-        {
-            String errorDescription = mDevice.getErrorDescription(hr);
-			OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
-                "Unable to create depth texture\nError Description:" + errorDescription,
-                "D3D11RenderSystem::_createDepthBufferFor");
-        }
+        OGRE_CHECK_DX_ERROR(
+            mDevice->CreateTexture2D(&descDepth, NULL, pDepthStencil.ReleaseAndGetAddressOf()));
 
         //
         // Create the View of the texture
@@ -1257,18 +1225,12 @@ namespace Ogre
         if(!mReadBackAsTexture && mFeatureLevel >= D3D_FEATURE_LEVEL_10_0 && BBDesc.SampleDesc.Count == 1)
         {
             D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc;
-            viewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+            viewDesc.Format = isReverseDepthBufferEnabled() ? DXGI_FORMAT_R32_FLOAT : DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
             viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
             viewDesc.Texture2D.MostDetailedMip = 0;
             viewDesc.Texture2D.MipLevels = 1;
-            HRESULT hr = mDevice->CreateShaderResourceView( pDepthStencil.Get(), &viewDesc, mDSTResView.ReleaseAndGetAddressOf());
-            if( FAILED(hr) || mDevice.isError())
-            {
-                String errorDescription = mDevice.getErrorDescription(hr);
-                OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
-                    "Unable to create the view of the depth texture \nError Description:" + errorDescription,
-                    "D3D11RenderSystem::_createDepthBufferFor");
-            }
+            OGRE_CHECK_DX_ERROR(mDevice->CreateShaderResourceView(pDepthStencil.Get(), &viewDesc,
+                                                                  mDSTResView.ReleaseAndGetAddressOf()));
         }
 
         // Create the depth stencil view
@@ -1282,18 +1244,12 @@ namespace Ogre
 
         if(isReverseDepthBufferEnabled())
         {
-            descDSV.Format            = DXGI_FORMAT_R32_FLOAT;
+            descDSV.Format            = DXGI_FORMAT_D32_FLOAT;
         }
                                                                                             // TODO: Decide how to expose this feature
         descDSV.Texture2D.MipSlice = 0;
-        hr = mDevice->CreateDepthStencilView( pDepthStencil.Get(), &descDSV, &depthStencilView );
-        if( FAILED(hr) )
-        {
-			String errorDescription = mDevice.getErrorDescription(hr);
-			OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
-                "Unable to create depth stencil view\nError Description:" + errorDescription,
-                "D3D11RenderSystem::_createDepthBufferFor");
-        }
+        OGRE_CHECK_DX_ERROR(
+            mDevice->CreateDepthStencilView(pDepthStencil.Get(), &descDSV, &depthStencilView));
 
         //Create the abstract container
         D3D11DepthBuffer *newDepthBuffer = new D3D11DepthBuffer( DepthBuffer::POOL_DEFAULT, this, depthStencilView,
@@ -1525,11 +1481,6 @@ namespace Ogre
             else
                 throw;
         }
-    }
-    //---------------------------------------------------------------------
-    VertexElementType D3D11RenderSystem::getColourVertexElementType(void) const
-    {
-        return VET_COLOUR_ABGR;
     }
     //---------------------------------------------------------------------
     void D3D11RenderSystem::_convertProjectionMatrix(const Matrix4& matrix,
@@ -2001,14 +1952,8 @@ namespace Ogre
             mBlendDescChanged = false;
             mBoundBlendState = 0;
 
-            HRESULT hr = mDevice->CreateBlendState(&mBlendDesc, opState->mBlendState.ReleaseAndGetAddressOf()) ;
-            if (FAILED(hr))
-            {
-				String errorDescription = mDevice.getErrorDescription(hr);
-				OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
-                    "Failed to create blend state\nError Description:" + errorDescription, 
-                    "D3D11RenderSystem::_render" );
-            }
+            OGRE_CHECK_DX_ERROR(
+                mDevice->CreateBlendState(&mBlendDesc, opState->mBlendState.ReleaseAndGetAddressOf()));
         }
         else
         {
@@ -2020,14 +1965,7 @@ namespace Ogre
 			mRasterizerDescChanged=false;
 			mBoundRasterizer = 0;
 
-            HRESULT hr = mDevice->CreateRasterizerState(&mRasterizerDesc, opState->mRasterizer.ReleaseAndGetAddressOf()) ;
-            if (FAILED(hr))
-            {
-				String errorDescription = mDevice.getErrorDescription(hr);
-				OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
-                    "Failed to create rasterizer state\nError Description:" + errorDescription, 
-                    "D3D11RenderSystem::_render" );
-            }
+            OGRE_CHECK_DX_ERROR(mDevice->CreateRasterizerState(&mRasterizerDesc, opState->mRasterizer.ReleaseAndGetAddressOf()));
         }
         else
         {
@@ -2039,14 +1977,7 @@ namespace Ogre
 			mBoundDepthStencilState = 0;
 			mDepthStencilDescChanged=false;
 
-            HRESULT hr = mDevice->CreateDepthStencilState(&mDepthStencilDesc, opState->mDepthStencilState.ReleaseAndGetAddressOf()) ;
-            if (FAILED(hr))
-            {
-				String errorDescription = mDevice.getErrorDescription(hr);
-				OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
-                    "Failed to create depth stencil state\nError Description:" + errorDescription, 
-                    "D3D11RenderSystem::_render" );
-            }
+            OGRE_CHECK_DX_ERROR(mDevice->CreateDepthStencilState(&mDepthStencilDesc, opState->mDepthStencilState.ReleaseAndGetAddressOf()));
         }
         else
 		{

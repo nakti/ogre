@@ -49,33 +49,13 @@ NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, O
         p.height= h;
     }
 
-	if (!p.useFullScreen) {
-		ret.native = SDL_CreateWindow(name.c_str(),
-			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1, 1, 0);
-		int tTop, tBot, tLef, tRig, tW, tH;
-		SDL_Rect tScreen;
-		if (SDL_GetDisplayUsableBounds(SDL_GetWindowDisplayIndex(ret.native), &tScreen) >= 0)
-		{
-			SDL_GetWindowBordersSize(ret.native, &tTop, &tLef, &tBot, &tRig);
-			unsigned int tMaxW = tScreen.w - tLef - tRig;
-			unsigned int tMaxH = tScreen.h - tTop - tBot;
-			tW = p.width > tMaxW ? tMaxW : p.width;
-			tH = p.height > tMaxH ? tMaxH : p.height;
-			SDL_SetWindowSize(ret.native, tW, tH);
-			auto tX = (tMaxW - tW) / 2 + tScreen.x + tLef;
-			auto tY = (tMaxH - tH) / 2 + tScreen.y + tTop;
-			SDL_SetWindowPosition(ret.native, tX, tY);
+    int flags = p.useFullScreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE;
+    int d = Ogre::StringConverter::parseInt(miscParams["monitorIndex"], 1) - 1;
+    ret.native =
+        SDL_CreateWindow(p.name.c_str(), SDL_WINDOWPOS_UNDEFINED_DISPLAY(d),
+                         SDL_WINDOWPOS_UNDEFINED_DISPLAY(d), p.width, p.height, flags);
 
-			SDL_SetWindowMinimumSize(ret.native, 400, 400);
-			SDL_SetWindowMaximumSize(ret.native, tMaxW, tMaxH);
-		}
-	}
-	else
-		ret.native = SDL_CreateWindow(name.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, p.width, p.height, SDL_WINDOW_FULLSCREEN);
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
-    SDL_GL_CreateContext(ret.native);
-#else
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
     SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
     SDL_GetWindowWMInfo(ret.native, &wmInfo);
@@ -90,9 +70,9 @@ NativeWindowPair ApplicationContextSDL::createWindow(const Ogre::String& name, O
     p.miscParams["externalWindowHandle"] = Ogre::StringConverter::toString(size_t(wmInfo.info.cocoa.window));
 #endif
 
-    if(!mWindows.empty() || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN)
+    if(!mWindows.empty())
     {
-        // additional windows should reuse the context (also the first on emscripten)
+        // additional windows should reuse the context
         p.miscParams["currentGLContext"] = "true";
     }
 

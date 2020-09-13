@@ -55,6 +55,7 @@ namespace Ogre {
         SceneManager* createInstance(const String& instanceName);
         void destroyInstance(SceneManager* instance);
     };
+
     /// Default scene manager
     class _OgreExport DefaultSceneManager : public SceneManager
     {

@@ -321,11 +321,6 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     bool Root::restoreConfig(void)
     {
-#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
-        OGRE_EXCEPT(Exception::ERR_CANNOT_WRITE_TO_FILE, "restoreConfig is not supported",
-            "Root::restoreConfig");
-#endif
-
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
         // Read the config from Documents first(user config) if it exists on iOS.
         // If it doesn't exist or is invalid then use mConfigFileName
@@ -1077,7 +1072,9 @@ namespace Ogre {
     void Root::convertColourValue(const ColourValue& colour, uint32* pDest)
     {
         assert(mActiveRenderer != 0);
+        OGRE_IGNORE_DEPRECATED_BEGIN
         mActiveRenderer->convertColourValue(colour, pDest);
+        OGRE_IGNORE_DEPRECATED_END
     }
     //-----------------------------------------------------------------------
     RenderWindow* Root::getAutoCreatedWindow(void)
@@ -1131,8 +1128,9 @@ namespace Ogre {
         }
 
         bool success;
-
+        OGRE_IGNORE_DEPRECATED_BEGIN
         success = mActiveRenderer->_createRenderWindows(renderWindowDescriptions, createdWindows);
+        OGRE_IGNORE_DEPRECATED_END
         if(success && !mFirstTimePostWindowInit)
         {
             oneTimePostWindowInit();
