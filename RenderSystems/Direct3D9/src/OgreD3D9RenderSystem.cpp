@@ -354,7 +354,7 @@ namespace Ogre
         optAllowDirectX9Ex.name = "Allow DirectX9Ex";
         optAllowDirectX9Ex.possibleValues.push_back( "Yes" );
         optAllowDirectX9Ex.possibleValues.push_back( "No" );
-        optAllowDirectX9Ex.currentValue = "No";
+        optAllowDirectX9Ex.currentValue = "Yes";
         optAllowDirectX9Ex.immutable = false;
 
         optVideoMode.name = "Video Mode";
