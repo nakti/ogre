@@ -558,7 +558,7 @@ namespace Ogre
         static DataStreamPtr openFileStream(const String& filename,
                 const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
-        /// @deprecated use ColourValue::getAsABGR()
+        /// @deprecated use ColourValue::getAsBYTE()
         OGRE_DEPRECATED void convertColourValue(const ColourValue& colour, uint32* pDest);
 
         /** Retrieves a pointer to the window that was created automatically
@@ -772,7 +772,7 @@ namespace Ogre
             This is only intended for internal use; it is only valid during the
             rendering of a frame.
         */
-        SceneManager* _getCurrentSceneManager(void) const;
+        SceneManager* _getCurrentSceneManager(void) const { return mSceneManagerStack.empty() ? NULL : mSceneManagerStack.back(); }
         /** Pushes the scene manager currently being used to render.
         @remarks
             This is only intended for internal use.

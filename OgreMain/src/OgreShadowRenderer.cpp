@@ -967,8 +967,7 @@ void SceneManager::ShadowRenderer::renderShadowVolumesToStencil(const Light* lig
 
     // Do we have access to vertex programs?
     bool extrudeInSoftware = true;
-    bool finiteExtrude = !mShadowUseInfiniteFarPlane ||
-        !mDestRenderSystem->getCapabilities()->hasCapability(RSC_INFINITE_FAR_PLANE);
+    bool finiteExtrude = !mShadowUseInfiniteFarPlane;
     if (mDestRenderSystem->getCapabilities()->hasCapability(RSC_VERTEX_PROGRAM))
     {
         extrudeInSoftware = false;
@@ -2212,10 +2211,8 @@ bool SceneManager::ShadowRenderer::ShadowCasterSceneQueryListener::queryResult(
         if (mFarDistSquared)
         {
             // Check object is within the shadow far distance
-            Vector3 toObj = object->getParentNode()->_getDerivedPosition()
-                - mCamera->getDerivedPosition();
-            Real radius = object->getWorldBoundingSphere().getRadius();
-            Real dist =  toObj.squaredLength();
+            Real dist =  object->getParentNode()->getSquaredViewDepth(mCamera);
+            Real radius = object->getBoundingRadiusScaled();
             if (dist - (radius * radius) > mFarDistSquared)
             {
                 // skip, beyond max range

@@ -138,6 +138,7 @@ namespace Ogre
         void setColourBlendState(const ColourBlendState& state);
 
         void _setSampler( size_t texUnit, Sampler& s);
+        void _setDepthClamp(bool enable);
         void _setDepthBufferParams(bool depthTest = true, bool depthWrite = true, CompareFunction depthFunction = CMPF_LESS_EQUAL);
 
         void _setCullingMode(CullingMode mode);
@@ -145,7 +146,7 @@ namespace Ogre
 
         virtual void _convertProjectionMatrix( const Matrix4& matrix, Matrix4& dest,
                                                bool forGpuProgram = false);
-        void _setPolygonMode(PolygonMode) {}
+        void _setPolygonMode(PolygonMode level);
         void _setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage) {}
         virtual void _render( const RenderOperation &op );
 

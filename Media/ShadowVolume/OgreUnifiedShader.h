@@ -35,6 +35,10 @@
 
 #define mix lerp
 
+vec2 vec2_splat(float x) { return vec2(x, x); }
+vec3 vec3_splat(float x) { return vec3(x, x, x); }
+vec4 vec4_splat(float x) { return vec4(x, x, x, x); }
+
 mat4 mtxFromRows(vec4 a, vec4 b, vec4 c, vec4 d)
 {
     return mat4(a, b, c, d);
@@ -62,6 +66,30 @@ mat3 mtxFromCols(vec3 a, vec3 b, vec3 c)
 
 #define IN(decl, sem) in decl : sem,
 #define OUT(decl, sem) out decl : sem,
+#elif defined(OGRE_METAL)
+#define vec2 float2
+#define vec3 float3
+#define vec4 float4
+#define mat3 metal::float3x3
+#define mat4 metal::float4x4
+
+// fake semantics for attribute locations
+enum {
+    POSITION = 0,
+    BLENDWEIGHT,
+    NORMAL,
+    COLOR0,
+    COLOR = COLOR0,
+    COLOR1,
+    BLENDIDICES = 7,
+    TEXCOORD0,
+    TEXCOORD1,
+    TEXCOORD2,
+    TEXCOORD3,
+    TANGENT = 15
+};
+
+#define IN(decl, sem) decl [[ attribute(sem) ]];
 #else
 // GLSL
 #define SAMPLER1D(name, reg) sampler1D name
@@ -94,6 +122,10 @@ mat4 transpose(mat4 m)
               m[0][3], m[1][3], m[2][3], m[3][3]);
 }
 #endif
+
+#define vec2_splat vec2
+#define vec3_splat vec3
+#define vec4_splat vec4
 
 mat4 mtxFromRows(vec4 a, vec4 b, vec4 c, vec4 d)
 {

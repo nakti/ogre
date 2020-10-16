@@ -767,6 +767,13 @@ namespace Ogre
         */
         virtual void _setDepthBias(float constantBias, float slopeScaleBias = 0.0f) = 0;
 
+        /**
+         * Clamp depth values to near and far plane rather than discarding
+         *
+         * Useful for "shadow caster pancaking" or with shadow volumes
+         */
+        virtual void _setDepthClamp(bool enable) {}
+
         /** The RenderSystem will keep a count of tris rendered, this resets the count. */
         virtual void _beginGeometryCount(void);
         /** Reports the number of tris rendered since the last _beginGeometryCount call. */
@@ -776,7 +783,7 @@ namespace Ogre
         /** Reports the number of vertices passed to the renderer since the last _beginGeometryCount call. */
         virtual unsigned int _getVertexCount(void) const;
 
-        /// @deprecated use ColourValue::getAsABGR()
+        /// @deprecated use ColourValue::getAsBYTE()
         OGRE_DEPRECATED void convertColourValue(const ColourValue& colour, uint32* pDest);
         /// @deprecated assume VET_UBYTE4_NORM
         OGRE_DEPRECATED virtual VertexElementType getColourVertexElementType(void) const
@@ -947,9 +954,6 @@ namespace Ogre
         @remarks
         This method allows you to 'mask off' rendering in all but a given rectangular area
         as identified by the parameters to this method.
-        @note
-        Not all systems support this method. Check the RenderSystemCapabilities for the
-        RSC_SCISSOR_TEST capability to see if it is supported.
         @param enabled True to enable the scissor test, false to disable it.
         @param rect The location of the corners of the rectangle, expressed in
         <i>pixels</i>.

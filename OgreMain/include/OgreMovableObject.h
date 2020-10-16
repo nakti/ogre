@@ -261,6 +261,9 @@ namespace Ogre {
         */
         virtual Real getBoundingRadius(void) const = 0;
 
+        /// as getBoundingRadius, but with scaling applied
+        Real getBoundingRadiusScaled() const;
+
         /** Retrieves the axis-aligned bounding box for this object in world coordinates. */
         virtual const AxisAlignedBox& getWorldBoundingBox(bool derive = false) const;
         /** Retrieves the worldspace bounding sphere for this object. */
@@ -608,7 +611,7 @@ namespace Ogre {
             const String& name, SceneManager* manager, 
             const NameValuePairList* params = 0);
         /** Destroy an instance of the object */
-        void destroyInstance(MovableObject* obj) { delete obj; }
+        virtual void destroyInstance(MovableObject* obj) { delete obj; }
 
         /** Does this factory require the allocation of a 'type flag', used to 
             selectively include / exclude this type from scene queries?

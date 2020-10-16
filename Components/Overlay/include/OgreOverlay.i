@@ -52,6 +52,20 @@ SHARED_PTR(Font);
 %ignore Ogre::Overlay::get2DElementsIterator;
 %include "OgreOverlay.h"
 SHARED_PTR(OverlayElement);
+%extend Ogre::OverlayElement {
+  OverlayContainer* castOverlayContainer()
+  {
+    return dynamic_cast<Ogre::OverlayContainer*>($self);
+  }
+  Ogre::PanelOverlayElement* castPanelOverlayElement()
+  {
+    return dynamic_cast<Ogre::PanelOverlayElement*>($self);
+  }
+  Ogre::TextAreaOverlayElement* castTextAreaOverlayElement()
+  {
+    return dynamic_cast<Ogre::TextAreaOverlayElement*>($self);
+  }
+}
 %include "OgreOverlayElement.h"
 %include "OgreOverlayElementFactory.h"
 SHARED_PTR(OverlayContainer);

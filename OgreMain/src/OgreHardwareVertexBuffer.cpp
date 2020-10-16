@@ -331,7 +331,7 @@ namespace Ogre {
 #endif
         case VET_UBYTE4_NORM:
         case VET_COLOUR_ABGR: 
-            return src.getAsABGR();
+            return src.getAsBYTE();
         };
 
     }
@@ -832,22 +832,4 @@ namespace Ogre {
         mBindingMap.swap(newBindingMap);
         mHighIndex = targetIndex;
     }
-    //-----------------------------------------------------------------------------
-    bool VertexBufferBinding::hasInstanceData() const
-    {
-        VertexBufferBinding::VertexBufferBindingMap::const_iterator i, iend;
-        iend = mBindingMap.end();
-        for (i = mBindingMap.begin(); i != iend; ++i)
-        {
-            if ( i->second->isInstanceData() )
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-
-
-
 }

@@ -137,32 +137,7 @@ namespace Ogre {
         MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
         NSMutableDictionary<NSString *, NSObject *> *preprocessorMacros =
                 [NSMutableDictionary dictionary];
-        NSString *names[VES_COUNT] =
-        {
-            @"VES_POSITION",
-            @"VES_BLEND_WEIGHTS",
-            @"VES_BLEND_INDICES",
-            @"VES_NORMAL",
-            @"VES_DIFFUSE",
-            @"VES_SPECULAR",
-            @"VES_TEXTURE_COORDINATES",
-            @"VES_BINORMAL",
-            @"VES_TANGENT",
-        };
-        for( size_t i=0; i<VES_COUNT; ++i )
-        {
-            if( i + 1u != VES_BINORMAL )
-            {
-                preprocessorMacros[names[i]] =
-                        [NSNumber numberWithUnsignedInt:VERTEX_ATTRIBUTE_INDEX[i] ];
-            }
-        }
-        for( uint32 i=0; i<8u; ++i )
-        {
-            NSString *key = [NSString stringWithFormat:@"VES_TEXTURE_COORDINATES%d", i];
-            preprocessorMacros[key] =
-                    [NSNumber numberWithUnsignedInt:VERTEX_ATTRIBUTE_INDEX[VES_TEXTURE_COORDINATES - 1] + i];
-        }
+
         preprocessorMacros[@"CONST_SLOT_START"] =
                 [NSNumber numberWithUnsignedInt:mType != GPT_COMPUTE_PROGRAM ?
                     OGRE_METAL_CONST_SLOT_START : OGRE_METAL_CS_CONST_SLOT_START];
@@ -180,6 +155,9 @@ namespace Ogre {
 
         options.preprocessorMacros = preprocessorMacros;
 
+        // metal does not support runtime #includes. Also we want to use our Resource system
+        mSource = _resolveIncludes(mSource, this, mFilename, true);
+
         NSError *error;
         mLibrary = [mDevice->mDevice newLibraryWithSource:[NSString stringWithUTF8String:mSource.c_str()]
                                                   options:options
@@ -191,8 +169,8 @@ namespace Ogre {
             if( error )
                 errorDesc = [error localizedDescription].UTF8String;
 
-            LogManager::getSingleton().logMessage(
-                        "Metal SL Compiler Error in " + mName + ":\n" + errorDesc );
+            LogManager::getSingleton().logError(
+                        "Metal Compiler in " + mName + ":\n" + errorDesc );
         }
         else
         {
@@ -203,8 +181,8 @@ namespace Ogre {
                 String errorDesc;
                 if( error )
                     errorDesc = [error localizedDescription].UTF8String;
-                LogManager::getSingleton().logMessage(
-                            "Metal SL Compiler Warnings in " + mName + ":\n" + errorDesc );
+                LogManager::getSingleton().logWarning(
+                            "Metal SL Compiler in " + mName + ":\n" + errorDesc );
             }
         }
 
@@ -214,8 +192,8 @@ namespace Ogre {
         if( !mFunction )
         {
             mCompiled = false;
-            LogManager::getSingleton().logMessage(
-                        "Error retriving entry point '" + mEntryPoint + "' in shader " + mName );
+            LogManager::getSingleton().logError(
+                        "retriving entry point '" + mEntryPoint + "' in shader " + mName );
         }
 
         // Log a message that the shader compiled successfully.

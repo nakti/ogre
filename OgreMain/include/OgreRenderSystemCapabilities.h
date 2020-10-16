@@ -112,9 +112,9 @@ namespace Ogre
         RSC_HWOCCLUSION             = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 14),
         /// Supports user clipping planes
         RSC_USER_CLIP_PLANES        = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 15),
-        /// Supports the VET_UBYTE4 vertex element type
+        /// @deprecated All targetted APIs by Ogre support this feature
         RSC_VERTEX_FORMAT_UBYTE4    = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 16),
-        /// Supports infinite far plane projection
+        /// @deprecated All targetted APIs by Ogre support this feature
         RSC_INFINITE_FAR_PLANE      = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 17),
         /// Supports hardware render-to-texture (bigger than framebuffer)
         RSC_HWRENDER_TO_TEXTURE     = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 18),
@@ -192,6 +192,8 @@ namespace Ogre
         RSC_HWOCCLUSION_ASYNCHRONOUS = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 24),
         /// Supports 2D Texture Arrays
         RSC_TEXTURE_2D_ARRAY = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 25),
+        /// Supports depth clamping
+        RSC_DEPTH_CLAMP = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 26),
 
         // ***** DirectX specific caps *****
         /// Is DirectX feature "per stage constants" supported
