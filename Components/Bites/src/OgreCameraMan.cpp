@@ -115,7 +115,7 @@ void CameraMan::frameRendered(const Ogre::FrameEvent &evt)
         // if not accelerating, try to stop in a certain time
         else mVelocity -= mVelocity * evt.timeSinceLastFrame * 10;
 
-        const Ogre::Real tooSmall = std::numeric_limits<Ogre::Real>::epsilon();
+        Ogre::Real tooSmall = std::numeric_limits<Ogre::Real>::epsilon();
 
         // keep camera velocity below top speed and above epsilon
         if (mVelocity.squaredLength() > topSpeed * topSpeed)
