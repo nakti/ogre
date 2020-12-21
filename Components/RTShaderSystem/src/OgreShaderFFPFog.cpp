@@ -107,7 +107,7 @@ bool FFPFog::resolveParameters(ProgramSet* programSet)
     mVSOutPos = vsMain->resolveOutputParameter(Parameter::SPC_POSITION_PROJECTIVE_SPACE);
     
     // Resolve fog colour.
-    mFogColour = psProgram->resolveParameter(GCT_FLOAT4, -1, (uint16)GPV_GLOBAL, "gFogColor");
+    mFogColour = psProgram->resolveParameter(GCT_FLOAT4, "gFogColor");
     
     // Resolve pixel shader output diffuse color.
     mPSOutDiffuse = psMain->resolveOutputParameter(Parameter::SPC_COLOR_DIFFUSE);
@@ -116,7 +116,7 @@ bool FFPFog::resolveParameters(ProgramSet* programSet)
     if (mCalcMode == CM_PER_PIXEL)
     {
         // Resolve fog params.      
-        mFogParams = psProgram->resolveParameter(GCT_FLOAT4, -1, (uint16)GPV_GLOBAL, "gFogParams");
+        mFogParams = psProgram->resolveParameter(GCT_FLOAT4, "gFogParams");
         
         // Resolve vertex shader output depth.      
         mVSOutDepth = vsMain->resolveOutputParameter(Parameter::SPC_DEPTH_VIEW_SPACE);
@@ -128,7 +128,7 @@ bool FFPFog::resolveParameters(ProgramSet* programSet)
     else
     {       
         // Resolve fog params.      
-        mFogParams = vsProgram->resolveParameter(GCT_FLOAT4, -1, (uint16)GPV_GLOBAL, "gFogParams");
+        mFogParams = vsProgram->resolveParameter(GCT_FLOAT4, "gFogParams");
         
         // Resolve vertex shader output fog factor.
         mVSOutFogFactor = vsMain->resolveOutputParameter(Parameter::SPC_UNKNOWN, GCT_FLOAT1);
@@ -306,6 +306,18 @@ void FFPFog::setFogProperties(FogMode fogMode,
     mFogParamsValue.w   = fogEnd != fogStart ? 1 / (fogEnd - fogStart) : 0; 
 }
 
+bool FFPFog::setParameter(const String& name, const String& value)
+{
+	if(name == "calc_mode")
+	{
+        CalcMode cm = value == "per_vertex" ? CM_PER_VERTEX : CM_PER_PIXEL;
+		setCalcMode(cm);
+		return true;
+	}
+
+	return false;
+}
+
 //-----------------------------------------------------------------------
 const String& FFPFogFactory::getType() const
 {
@@ -343,14 +355,7 @@ SubRenderState* FFPFogFactory::createInstance(ScriptCompiler* compiler,
                         return NULL;
                     }
 
-                    if (strValue == "per_vertex")
-                    {
-                        fogSubRenderState->setCalcMode(FFPFog::CM_PER_VERTEX);
-                    }
-                    else if (strValue == "per_pixel")
-                    {
-                        fogSubRenderState->setCalcMode(FFPFog::CM_PER_PIXEL);
-                    }
+                    fogSubRenderState->setParameter("calc_mode", strValue);
                 }
                 
                 return subRenderState;

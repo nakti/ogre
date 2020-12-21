@@ -203,19 +203,31 @@ namespace Ogre
         const ConfigOptionMap& getConfigOptions() const { return mOptions; }
 
         /** Sets an option for this API
-        @remarks
+
         Used to confirm the settings (normally chosen by the user) in
         order to make the renderer able to initialise with the settings as required.
-        This may be video mode, D3D driver, full screen / windowed etc.
+        This may initialise the @ref RenderWindowDescription or set some RenderSystem
+        specific paramters.
         Called automatically by the default configuration
         dialog, and by the restoration of saved settings.
         These settings are stored and only activated when
         RenderSystem::initialise or RenderSystem::reinitialise
         are called.
-        @par
+
         If using a custom configuration dialog, it is advised that the
         caller calls RenderSystem::getConfigOptions
         again, since some options can alter resulting from a selection.
+
+        Common options:
+
+        | Key |  Default | Description |
+        |-----|---------------|---------|
+        | Full Screen | false | Window full-screen flag |
+        | VSync | true | "vsync" in  @ref _createRenderWindow |
+        | sRGB Gamma Conversion | false | "gamma" in  @ref _createRenderWindow  |
+        | FSAA | 0 | "FSAA" in  @ref _createRenderWindow  |
+        | Video Mode | - | Window resolution |
+        | Display Frequency | - | "displayFrequency" in  @ref _createRenderWindow |
         @param
         name The name of the option to alter.
         @param
@@ -248,12 +260,8 @@ namespace Ogre
         */
         virtual void _initialise();
 
-        /**
-        Returns whether under the current render system buffers marked as TU_STATIC can be locked for update
-        @remarks
-        Needed in the implementation of DirectX9 with DirectX9Ex driver
-        */
-        virtual bool isStaticBufferLockable() const { return true; }
+        /// @deprecated assume true
+        OGRE_DEPRECATED virtual bool isStaticBufferLockable() const { return true; }
 
         /** Query the real capabilities of the GPU and driver in the RenderSystem*/
         virtual RenderSystemCapabilities* createRenderSystemCapabilities() const = 0;
@@ -1115,13 +1123,13 @@ namespace Ogre
         Once this init sequence is completed the threads are independent but
         this startup sequence must be respected.
         */
-        virtual void preExtraThreadsStarted() = 0;
+        virtual void preExtraThreadsStarted() {}
 
         /** Tell the rendersystem to perform any tasks it needs to directly
         after other threads which might access the rendering API are registered.
         @see RenderSystem::preExtraThreadsStarted
         */
-        virtual void postExtraThreadsStarted() = 0;
+        virtual void postExtraThreadsStarted() {}
 
         /** Register the an additional thread which may make calls to rendersystem-related 
         objects.
@@ -1135,18 +1143,15 @@ namespace Ogre
         This method takes no parameters - it must be called from the thread being
         registered and that context is enough.
         */
-        virtual void registerThread() = 0;
+        virtual void registerThread() {}
 
         /** Unregister an additional thread which may make calls to rendersystem-related objects.
         @see RenderSystem::registerThread
         */
-        virtual void unregisterThread() = 0;
+        virtual void unregisterThread() {}
 
-        /**
-        * Gets the number of display monitors.
-        @see Root::getDisplayMonitorCount
-        */
-        virtual unsigned int getDisplayMonitorCount() const = 0;
+        /// @deprecated do not use
+        OGRE_DEPRECATED virtual unsigned int getDisplayMonitorCount() const { return 1; }
 
         /**
         * This marks the beginning of an event for GPU profiling.

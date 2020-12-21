@@ -166,13 +166,13 @@ namespace Ogre {
     void BillboardSet::removeBillboard(unsigned int index)
     {
         assert(index < mActiveBillboards && "Billboard isn't in the active list.");
-        std::swap(mBillboardPool[index], mBillboardPool[mActiveBillboards--]);
+        std::swap(mBillboardPool[index], mBillboardPool[--mActiveBillboards]);
     }
 
     //-----------------------------------------------------------------------
     void BillboardSet::removeBillboard( Billboard* pBill )
     {
-        auto it = std::find(mBillboardPool.begin(), mBillboardPool.end(), pBill);
+        auto it = std::find(mBillboardPool.begin(), mBillboardPool.begin() + mActiveBillboards, pBill);
         removeBillboard(std::distance(mBillboardPool.begin(), it));
     }
     //-----------------------------------------------------------------------
@@ -352,17 +352,24 @@ namespace Ogre {
         // Skip if not visible (NB always true if not bounds checking individual billboards)
         if (!billboardVisible(mCurrentCamera, bb)) return;
 
-        if (!mPointRendering &&
-            (mBillboardType == BBT_ORIENTED_SELF || mBillboardType == BBT_PERPENDICULAR_SELF ||
+        // Increment visibles
+        mNumVisibleBillboards++;
+
+        if(mPointRendering)
+        {
+            genPointVertices(bb);
+            return;
+        }
+
+        if ((mBillboardType == BBT_ORIENTED_SELF || mBillboardType == BBT_PERPENDICULAR_SELF ||
              (mAccurateFacing && mBillboardType != BBT_PERPENDICULAR_COMMON)))
         {
             // Have to generate axes & offsets per billboard
             genBillboardAxes(&mCamX, &mCamY, &bb);
         }
 
-        if (!mPointRendering &&
-            (mBillboardType == BBT_ORIENTED_SELF || mBillboardType == BBT_PERPENDICULAR_SELF ||
-                bb.mOwnDimensions || (mAccurateFacing && mBillboardType != BBT_PERPENDICULAR_COMMON)))
+        if ((mBillboardType == BBT_ORIENTED_SELF || mBillboardType == BBT_PERPENDICULAR_SELF ||
+             bb.mOwnDimensions || (mAccurateFacing && mBillboardType != BBT_PERPENDICULAR_COMMON)))
         {
             // If it has own dimensions, or self-oriented, gen offsets
             Vector3 vOwnOffset[4];
@@ -370,16 +377,13 @@ namespace Ogre {
             Real height = bb.mOwnDimensions ? bb.mHeight : mDefaultHeight;
             genVertOffsets(mLeftOff, mRightOff, mTopOff, mBottomOff,
                 width, height, mCamX, mCamY, vOwnOffset);
-            genVertices(vOwnOffset, bb);
+            genQuadVertices(vOwnOffset, bb);
         }
         else
         {
             // Use default dimension, already computed before the loop, for faster creation
-            genVertices(mVOffset, bb);
+            genQuadVertices(mVOffset, bb);
         }
-
-        // Increment visibles
-        mNumVisibleBillboards++;
     }
     //-----------------------------------------------------------------------
     void BillboardSet::endBillboards(void)
@@ -832,33 +836,28 @@ namespace Ogre {
         return SceneManager::FX_TYPE_MASK;
     }
     //-----------------------------------------------------------------------
-    void BillboardSet::genVertices(
-        const Vector3* const offsets, const Billboard& bb)
+    void BillboardSet::genPointVertices(const Billboard& bb)
     {
         RGBA colour = bb.mColour.getAsBYTE();
-        RGBA* pCol;
+        // Single vertex per billboard, ignore offsets
+        // position
+        *mLockPtr++ = bb.mPosition.x;
+        *mLockPtr++ = bb.mPosition.y;
+        *mLockPtr++ = bb.mPosition.z;
+        // Colour
+        memcpy(mLockPtr++, &colour, sizeof(RGBA));
+        // No texture coords in point rendering
+    }
+    void BillboardSet::genQuadVertices(const Vector3* const offsets, const Billboard& bb)
+    {
+        RGBA colour = bb.mColour.getAsBYTE();
 
         // Texcoords
         assert( bb.mUseTexcoordRect || bb.mTexcoordIndex < mTextureCoords.size() );
         const Ogre::FloatRect & r =
             bb.mUseTexcoordRect ? bb.mTexcoordRect : mTextureCoords[bb.mTexcoordIndex];
 
-        if (mPointRendering)
-        {
-            // Single vertex per billboard, ignore offsets
-            // position
-            *mLockPtr++ = bb.mPosition.x;
-            *mLockPtr++ = bb.mPosition.y;
-            *mLockPtr++ = bb.mPosition.z;
-            // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
-            // No texture coords in point rendering
-        }
-        else if (bb.mRotation == Radian(0))
+        if (bb.mRotation == Radian(0))
         {
             // Left-top
             // Positions
@@ -866,11 +865,7 @@ namespace Ogre {
             *mLockPtr++ = offsets[0].y + bb.mPosition.y;
             *mLockPtr++ = offsets[0].z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = r.left;
             *mLockPtr++ = r.top;
@@ -881,11 +876,7 @@ namespace Ogre {
             *mLockPtr++ = offsets[1].y + bb.mPosition.y;
             *mLockPtr++ = offsets[1].z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = r.right;
             *mLockPtr++ = r.top;
@@ -896,11 +887,7 @@ namespace Ogre {
             *mLockPtr++ = offsets[2].y + bb.mPosition.y;
             *mLockPtr++ = offsets[2].z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = r.left;
             *mLockPtr++ = r.bottom;
@@ -911,11 +898,7 @@ namespace Ogre {
             *mLockPtr++ = offsets[3].y + bb.mPosition.y;
             *mLockPtr++ = offsets[3].z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = r.right;
             *mLockPtr++ = r.bottom;
@@ -937,11 +920,7 @@ namespace Ogre {
             *mLockPtr++ = pt.y + bb.mPosition.y;
             *mLockPtr++ = pt.z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = r.left;
             *mLockPtr++ = r.top;
@@ -953,11 +932,7 @@ namespace Ogre {
             *mLockPtr++ = pt.y + bb.mPosition.y;
             *mLockPtr++ = pt.z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = r.right;
             *mLockPtr++ = r.top;
@@ -969,11 +944,7 @@ namespace Ogre {
             *mLockPtr++ = pt.y + bb.mPosition.y;
             *mLockPtr++ = pt.z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = r.left;
             *mLockPtr++ = r.bottom;
@@ -985,11 +956,7 @@ namespace Ogre {
             *mLockPtr++ = pt.y + bb.mPosition.y;
             *mLockPtr++ = pt.z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = r.right;
             *mLockPtr++ = r.bottom;
@@ -1015,11 +982,7 @@ namespace Ogre {
             *mLockPtr++ = offsets[0].y + bb.mPosition.y;
             *mLockPtr++ = offsets[0].z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = mid_u - cos_rot_w + sin_rot_h;
             *mLockPtr++ = mid_v - sin_rot_w - cos_rot_h;
@@ -1030,11 +993,7 @@ namespace Ogre {
             *mLockPtr++ = offsets[1].y + bb.mPosition.y;
             *mLockPtr++ = offsets[1].z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = mid_u + cos_rot_w + sin_rot_h;
             *mLockPtr++ = mid_v + sin_rot_w - cos_rot_h;
@@ -1045,11 +1004,7 @@ namespace Ogre {
             *mLockPtr++ = offsets[2].y + bb.mPosition.y;
             *mLockPtr++ = offsets[2].z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = mid_u - cos_rot_w - sin_rot_h;
             *mLockPtr++ = mid_v - sin_rot_w + cos_rot_h;
@@ -1060,16 +1015,11 @@ namespace Ogre {
             *mLockPtr++ = offsets[3].y + bb.mPosition.y;
             *mLockPtr++ = offsets[3].z + bb.mPosition.z;
             // Colour
-            // Convert float* to RGBA*
-            pCol = static_cast<RGBA*>(static_cast<void*>(mLockPtr));
-            *pCol++ = colour;
-            // Update lock pointer
-            mLockPtr = static_cast<float*>(static_cast<void*>(pCol));
+            memcpy(mLockPtr++, &colour, sizeof(RGBA));
             // Texture coords
             *mLockPtr++ = mid_u + cos_rot_w - sin_rot_h;
             *mLockPtr++ = mid_v + sin_rot_w + cos_rot_h;
         }
-
     }
     //-----------------------------------------------------------------------
     void BillboardSet::genVertOffsets(Real inleft, Real inright, Real intop, Real inbottom,

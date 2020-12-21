@@ -147,7 +147,7 @@ namespace Ogre
         virtual void _convertProjectionMatrix( const Matrix4& matrix, Matrix4& dest,
                                                bool forGpuProgram = false);
         void _setPolygonMode(PolygonMode level);
-        void _setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage) {}
+        void _setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage);
         virtual void _render( const RenderOperation &op );
 
         void bindGpuProgram(GpuProgram* prg);
@@ -165,11 +165,6 @@ namespace Ogre
 
         virtual void _setRenderTarget(RenderTarget *target);
         virtual void _notifyCompositorNodeSwitchedRenderTarget( RenderTarget *previousTarget );
-        virtual void preExtraThreadsStarted();
-        virtual void postExtraThreadsStarted();
-        virtual void registerThread();
-        virtual void unregisterThread();
-        virtual unsigned int getDisplayMonitorCount() const     { return 1; }
 
         virtual void beginProfileEvent( const String &eventName );
         virtual void endProfileEvent( void );

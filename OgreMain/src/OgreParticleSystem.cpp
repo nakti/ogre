@@ -836,6 +836,9 @@ namespace Ogre {
             }
 
             mParentNode->needUpdate();
+
+            if (mRenderer)
+                mRenderer->_notifyBoundingBox(mAABB);
         }
     }
     //-----------------------------------------------------------------------

@@ -48,8 +48,11 @@ namespace Ogre {
 
     /** Enum covering what exactly a billboard's position means (center,
         top-left etc).
-    @see
-        BillboardSet::setBillboardOrigin
+
+        This setting controls the fine tuning of where a billboard appears in relation to it's
+        position. It could be that a billboard's position represents it's center (e.g. for fireballs),
+        it could mean the center of the bottom edge (e.g. a tree which is positioned on the ground),
+        the top-left corner (e.g. a cursor).
     */
     enum BillboardOrigin
     {
@@ -63,7 +66,13 @@ namespace Ogre {
         BBO_BOTTOM_CENTER,
         BBO_BOTTOM_RIGHT
     };
-    /** The rotation type of billboard. */
+    /** The rotation type of billboard.
+     *
+     * By default, billboard particles will rotate the texture coordinates to according with particle
+     * rotation. But rotate texture coordinates has some disadvantage, e.g. the corners of the texture will
+     * lost after rotate, and the corners of the billboard will fill with unwanted texture area when using
+     * wrap address mode or sub-texture sampling. This settings allow you specifying other rotation type.
+     */
     enum BillboardRotationType
     {
         /// Rotate the billboard's vertices around their facing direction
@@ -229,7 +238,9 @@ namespace Ogre {
         @param offsets Array of 4 Vector3 offsets
         @param pBillboard Reference to billboard
         */
-        void genVertices(const Vector3* const offsets, const Billboard& pBillboard);
+        void genQuadVertices(const Vector3* const offsets, const Billboard& pBillboard);
+
+        void genPointVertices(const Billboard& pBillboard);
 
         /** Internal method generates vertex offsets.
         @remarks
@@ -425,7 +436,7 @@ namespace Ogre {
         virtual void removeBillboard(Billboard* pBill);
 
         /** Sets the point which acts as the origin point for all billboards in this set.
-        @remarks
+
             This setting controls the fine tuning of where a billboard appears in relation to it's
             position. It could be that a billboard's position represents it's center (e.g. for fireballs),
             it could mean the center of the bottom edge (e.g. a tree which is positioned on the ground),
@@ -633,12 +644,12 @@ namespace Ogre {
             more expensive, but more accurate version.
         @param acc True to use the slower but more accurate model. Default is false.
         */
-        virtual void setUseAccurateFacing(bool acc) { mAccurateFacing = acc; }
+        void setUseAccurateFacing(bool acc) { mAccurateFacing = acc; }
         /** Gets whether or not billboards use an 'accurate' facing model
             based on the vector from each billboard to the camera, rather than 
             an optimised version using just the camera direction.
         */
-        virtual bool getUseAccurateFacing(void) const { return mAccurateFacing; }
+        bool getUseAccurateFacing(void) const { return mAccurateFacing; }
 
 
         virtual const String& getMovableType(void) const override;
@@ -664,7 +675,7 @@ namespace Ogre {
             This is most useful when you are driving the billboard set from 
             an external data source.
         */
-        virtual void setBillboardsInWorldSpace(bool ws) { mWorldSpace = ws; }
+        void setBillboardsInWorldSpace(bool ws) { mWorldSpace = ws; }
 
         /** Gets whether billboards are treated as being in world space.
          */
@@ -703,20 +714,25 @@ namespace Ogre {
             setTextureCoords(std::vector<FloatRect>(coords, coords + numCoords));
         }
 
-        /** setTextureStacksAndSlices() will generate texture coordinate rects as if the 
-            texture for the billboard set contained 'stacks' rows of 'slices' 
-            images each, all equal size. Thus, if the texture size is 512x512 
-            and 'stacks' is 4 and 'slices' is 8, each sub-rectangle of the texture 
+        /** Generate texture coordinate rects for a tiled texture sheet
+
+            A texture sheet is a grid of images that can be used to create simple animations.
+            This method will generate the uv coordinates for the individual sub-rectangles.
+
+            These can then be addressed by Ogre::Billboard::setTexcoordIndex().
+
+            If the texture size is 512x512 and 'stacks' is 4 and 'slices' is 8, each sub-rectangle of the texture
             would be 128 texels tall and 64 texels wide.
-        @remarks
-            This function is short-hand for creating a regular set and calling 
-            setTextureCoords() yourself. The numbering used for Billboard::setTexcoordIndex() 
-            counts first across, then down, so top-left is 0, the one to the right 
+
+            The numbering counts first across, then down, so top-left is 0, the one to the right
             of that is 1, and the lower-right is stacks*slices-1.
-        @see
-            BillboardSet::setTextureCoords()
+
+            If you need more flexibility, you can use Ogre::BillboardSet::setTextureCoords() instead.
+
+            @param stacks number of vertical tiles (rows)
+            @param slices number of horizontal tiles (columns)
         */
-        virtual void setTextureStacksAndSlices( uchar stacks, uchar slices );
+        void setTextureStacksAndSlices( uchar stacks, uchar slices );
 
         /** getTextureCoords() returns the current texture coordinate rects in 
             effect. By default, there is only one texture coordinate rect in the 
@@ -731,7 +747,7 @@ namespace Ogre {
 
         /** Set whether or not the BillboardSet will use point rendering
             rather than manually generated quads.
-        @remarks
+
             By default a billboardset is rendered by generating geometry for a
             textured quad in memory, taking into account the size and 
             orientation settings, and uploading it to the video card. 
@@ -739,30 +755,28 @@ namespace Ogre {
             only one position needs to be sent per billboard rather than 4 and
             the hardware sorts out how this is rendered based on the render
             state.
-        @par
+
             Using point rendering is faster than generating quads manually, but
             is more restrictive. The following restrictions apply:
-            \li Only the BBT_POINT type is supported
-            \li Size and appearance of each billboard is controlled by the 
-                material (Pass::setPointSize, Pass::setPointSizeAttenuation, 
-                Pass::setPointSpritesEnabled)
-            \li Per-billboard size is not supported (stems from the above)
-            \li Per-billboard rotation is not supported, this can only be 
+            - Only the Ogre::BBT_POINT type is supported
+            - Size and appearance of each billboard is controlled by the material
+              - Ogre::Pass::setPointSize
+              - Ogre::Pass::setPointAttenuation
+              - Ogre::Pass::setPointSpritesEnabled
+            - Per-billboard size is not supported (stems from the above)
+            - Per-billboard rotation is not supported, this can only be
                 controlled through texture unit rotation
-            \li Only BBO_CENTER origin is supported
-            \li Per-billboard texture coordinates are not supported
+            - Only Ogre::BBO_CENTER origin is supported
+            - Per-billboard texture coordinates are not supported
 
-        @par
             You will almost certainly want to enable in your material pass
-            both point attenuation and point sprites if you use this option. 
-        @param enabled True to enable point rendering, false otherwise
+            both point attenuation and point sprites if you use this option.
         */
         virtual void setPointRenderingEnabled(bool enabled);
 
         /** Returns whether point rendering is enabled. */
-        virtual bool isPointRenderingEnabled(void) const
-        { return mPointRendering; }
-        
+        bool isPointRenderingEnabled(void) const { return mPointRendering; }
+
         /// Override to return specific type flag
         uint32 getTypeFlags(void) const;
 

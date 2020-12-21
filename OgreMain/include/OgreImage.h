@@ -71,6 +71,17 @@ namespace Ogre {
          */
         Image( const Image &img );
 
+        /**
+         * allocates a buffer of given size if needed
+         *
+         * - If the current allocation is equal to the requested size, this does nothing
+         * - Otherwise any current allocation is freed, and memory of specified size is allocated
+         *
+         * @see loadDynamicImage
+         */
+        void create(PixelFormat format, uint32 width, uint32 height, uint32 depth = 1, uint32 numFaces = 1,
+                    uint32 numMipMaps = 0);
+
         /** Standard destructor.
         */
         ~Image();
@@ -331,6 +342,18 @@ namespace Ogre {
             return mBuffer + mPixelSize * (z * mWidth * mHeight + mWidth * y + x);
         }
 
+        /// @overload
+        template <typename T> T* getData(uint32 x = 0, uint32 y = 0, uint32 z = 0)
+        {
+            return reinterpret_cast<T*>(getData(x, y, z));
+        }
+
+        /// @overload
+        template <typename T> const T* getData(uint32 x = 0, uint32 y = 0, uint32 z = 0) const
+        {
+            return reinterpret_cast<T*>(getData(x, y, z));
+        }
+
         /** Returns the size of the data buffer in bytes
         */
         size_t getSize() const;
@@ -409,7 +432,7 @@ namespace Ogre {
         {
             FILTER_NEAREST,
             FILTER_LINEAR,
-            FILTER_BILINEAR,
+            FILTER_BILINEAR = FILTER_LINEAR,
             FILTER_BOX,
             FILTER_TRIANGLE,
             FILTER_BICUBIC

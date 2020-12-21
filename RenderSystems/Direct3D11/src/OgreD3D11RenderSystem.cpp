@@ -1380,6 +1380,9 @@ namespace Ogre
         ID3D11DeviceN * device = createD3D11Device(d3dDriver, mDriverType, mMinRequestedFeatureLevel, mMaxRequestedFeatureLevel, &mFeatureLevel);
         mDevice.TransferOwnership(device);
 
+        LogManager::getSingleton().stream() << "D3D11: Device Feature Level " << (mFeatureLevel >> 12)
+                                            << "." << ((mFeatureLevel >> 8) & 0xF);
+
         LARGE_INTEGER driverVersion = mDevice.GetDriverVersion();
         mDriverVersion.major = HIWORD(driverVersion.HighPart);
         mDriverVersion.minor = LOWORD(driverVersion.HighPart);
@@ -1548,9 +1551,6 @@ namespace Ogre
     //---------------------------------------------------------------------
     void D3D11RenderSystem::_setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage )
     {
-        mSceneAlphaRejectFunc   = func;
-        mSceneAlphaRejectValue  = value;
-        mSceneAlphaToCoverage   = alphaToCoverage;
         mBlendDesc.AlphaToCoverageEnable = alphaToCoverage;
         mBlendDescChanged = true;
     }
@@ -3135,26 +3135,6 @@ namespace Ogre
         // Range [0.0f, 1.0f]
         // D3D inverts even identity view matrices, so maximum INPUT is -1.0
         return -1.0f;
-    }
-    //---------------------------------------------------------------------
-    void D3D11RenderSystem::registerThread()
-    {
-        // nothing to do - D3D11 shares rendering context already
-    }
-    //---------------------------------------------------------------------
-    void D3D11RenderSystem::unregisterThread()
-    {
-        // nothing to do - D3D11 shares rendering context already
-    }
-    //---------------------------------------------------------------------
-    void D3D11RenderSystem::preExtraThreadsStarted()
-    {
-        // nothing to do - D3D11 shares rendering context already
-    }
-    //---------------------------------------------------------------------
-    void D3D11RenderSystem::postExtraThreadsStarted()
-    {
-        // nothing to do - D3D11 shares rendering context already
     }
     //---------------------------------------------------------------------
     void D3D11RenderSystem::determineFSAASettings(uint fsaa, const String& fsaaHint, 

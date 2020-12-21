@@ -109,10 +109,6 @@ namespace Ogre
         bool checkVertexTextureFormats(void);
         void detachRenderTargetImpl(const String& name);
 
-        CompareFunction mSceneAlphaRejectFunc; // should be merged with - mBlendDesc
-        unsigned char mSceneAlphaRejectValue; // should be merged with - mBlendDesc
-        bool mSceneAlphaToCoverage;
-
         D3D11_BLEND_DESC    mBlendDesc;
         bool                mBlendDescChanged;
 
@@ -248,6 +244,17 @@ namespace Ogre
 
         void getCustomAttribute(const String& name, void* pData);
         // Low-level overridden members
+        /**
+         Specific options:
+
+        | Key |  Default | Description |
+        |-----|---------------|---------|
+        | Min Requested Feature Levels | 9.1 | Min D3D_FEATURE_LEVEL |
+        | Max Requested Feature Levels | 11.0 | Min D3D_FEATURE_LEVEL |
+        | Information Queue Exceptions Bottom Level | No information queue exceptions | Throw exception on message from validation layer |
+        | Driver type | Hardware | D3D_DRIVER_TYPE |
+        | Rendering Device | (default) |  |
+        */
         void setConfigOption( const String &name, const String &value );
         void shutdown();
         void validateDevice(bool forceDeviceElection = false);
@@ -308,10 +315,6 @@ namespace Ogre
         Real getVerticalTexelOffset(void);
         Real getMinimumDepthInputValue(void);
         Real getMaximumDepthInputValue(void);
-        void registerThread();
-        void unregisterThread();
-        void preExtraThreadsStarted();
-        void postExtraThreadsStarted();
 
         /**
          * Set current render target to target, enabling its GL context if needed
@@ -319,9 +322,6 @@ namespace Ogre
         void _setRenderTarget(RenderTarget *target);
 
         void determineFSAASettings(uint fsaa, const String& fsaaHint, DXGI_FORMAT format, DXGI_SAMPLE_DESC* outFSAASettings);
-
-        /// @copydoc RenderSystem::getDisplayMonitorCount
-        unsigned int getDisplayMonitorCount() const {return 1;} //todo
 
         D3D11Device &_getDevice() { return mDevice; }
         

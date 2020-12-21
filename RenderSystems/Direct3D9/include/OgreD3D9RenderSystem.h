@@ -256,6 +256,17 @@ namespace Ogre
         const String& getName() const;
 
         // Low-level overridden members
+        /**
+         Specific options:
+
+        | Key |  Default | Description |
+        |-----|---------------|---------|
+        | Allow DirectX9Ex | No | Use Direct3D 9Ex if possible |
+        | Multi device memory hint | Auto hardware buffers management | Automatically restore hardware buffers on device lost |
+        | Resource Creation Policy | - | See @ref D3D9ResourceCreationPolicy |
+        | Fixed Pipeline Enabled | true | Use fixed function units where possible. Disable to test migration to shader-only pipeline |
+        | Rendering Device | (default) |  |
+        */
         void setConfigOption( const String &name, const String &value );
         void shutdown();
         void setAmbientLight( float r, float g, float b );
@@ -330,15 +341,6 @@ namespace Ogre
         Real getVerticalTexelOffset();
         Real getMinimumDepthInputValue();
         Real getMaximumDepthInputValue();
-        void registerThread();
-        void unregisterThread();
-        void preExtraThreadsStarted();
-        void postExtraThreadsStarted();     
-                
-        /*
-        Returns whether under the current render system buffers marked as TU_STATIC can be locked for update
-        */
-        virtual bool isStaticBufferLockable() const { return !mIsDirectX9Ex; }
 
 		bool IsActiveDeviceLost();
 

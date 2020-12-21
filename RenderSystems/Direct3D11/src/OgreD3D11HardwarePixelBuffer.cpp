@@ -133,7 +133,10 @@ namespace Ogre {
                 mParentTexture->getTextureResource(), subresource, &boxDx11);
         }
         else if(flags == D3D11_MAP_WRITE_DISCARD)
+        {
             flags = D3D11_MAP_WRITE; // stagingbuffer doesn't support discarding
+            mCurrentLockOptions = HBL_WRITE_ONLY;
+        }
 
         _map(mStagingBuffer.Get(), flags, box);
     }
@@ -145,7 +148,7 @@ namespace Ogre {
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "DirectX does not allow locking of or directly writing to RenderTargets. Use blitFromMemory if you need the contents.",
             "D3D11HardwarePixelBuffer::lockImpl");  
 
-        mLockedBox = lockBox;
+
 
         // Set extents and format
         // Note that we do not carry over the left/top/front here, since the returned
@@ -182,7 +185,6 @@ namespace Ogre {
 
         // save without offset
         mCurrentLock = rval;
-        mCurrentLockOptions = options;
 
         return rval;
     }
