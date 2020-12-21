@@ -1166,8 +1166,6 @@ namespace OgreBites
 
 		virtual bool mouseWheelRolled(const MouseWheelEvent& evt) override;
 
-        bool mouseWheelRolled(const MouseWheelEvent& evt);
-
     protected:
 
         /**

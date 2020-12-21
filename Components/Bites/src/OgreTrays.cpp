@@ -2189,45 +2189,6 @@ bool TrayManager::mouseWheelRolled(const MouseWheelEvent& evt)
     return false;
 }
 
-bool TrayManager::mouseWheelRolled(const MouseWheelEvent& evt)
-{
-	float wheelDelta = evt.y;
-
-	if (mExpandedMenu)   // only check top priority widget until it passes on
-	{
-		mExpandedMenu->_cursorMoved(mCursorPos, wheelDelta);
-		return true;
-	}
-
-	if (mDialog)   // only check top priority widget until it passes on
-	{
-		mDialog->_cursorMoved(mCursorPos, wheelDelta);
-		if (mOk) mOk->_cursorMoved(mCursorPos, wheelDelta);
-		else
-		{
-			mYes->_cursorMoved(mCursorPos, wheelDelta);
-			mNo->_cursorMoved(mCursorPos, wheelDelta);
-		}
-		return true;
-	}
-
-	// process trays and widgets in reverse ZOrder
-	for (int i = 9; i >= 0; --i)
-	{
-		if (!mTrays[i]->isVisible()) continue;
-
-		for (int j = (int)mWidgets[i].size() - 1; j >= 0; --j)
-		{
-			if (j >= (int)mWidgets[i].size()) continue;
-			Widget * w = mWidgets[i][j];
-			if (!w->getOverlayElement()->isVisible()) continue;
-			w->_cursorMoved(mCursorPos, wheelDelta);    // send event to widget
-		}
-	}
-
-	return false;
-}
-
 void TrayManager::setExpandedMenu(SelectMenu *m)
 {
     if (!mExpandedMenu && m)
