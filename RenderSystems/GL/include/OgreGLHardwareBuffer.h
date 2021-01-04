@@ -1,7 +1,7 @@
 /*
 -----------------------------------------------------------------------------
 This source file is part of OGRE
-(Object-oriented Graphics Rendering Engine)
+    (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
 Copyright (c) 2000-2014 Torus Knot Software Ltd
@@ -25,44 +25,47 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#ifndef __D3D11HARDWAREVERTEXBUFFER_H__
-#define __D3D11HARDWAREVERTEXBUFFER_H__
+#ifndef __GLHARDWAREVERTEXBUFFER_H__
+#define __GLHARDWAREVERTEXBUFFER_H__
 
-#include "OgreD3D11Prerequisites.h"
-#include "OgreHardwareVertexBuffer.h"
+#include "OgreGLPrerequisites.h"
+#include "OgreHardwareBuffer.h"
 
 namespace Ogre {
 
-    /// Specialisation of HardwareVertexBuffer for D3D11
-    class _OgreD3D11Export D3D11HardwareVertexBuffer : public HardwareVertexBuffer
+    /// Specialisation of HardwareVertexBuffer for OpenGL
+    class _OgreGLExport GLHardwareVertexBuffer : public HardwareBuffer
     {
+    private:
+        GLenum mTarget;
+        GLuint mBufferId;
+        // Scratch buffer handling
+        bool mLockedToScratch;
+        size_t mScratchOffset;
+        size_t mScratchSize;
+        void* mScratchPtr;
+        bool mScratchUploadOnUnlock;
+        GLRenderSystem* mRenderSystem;
+
     protected:
-        D3D11HardwareBuffer* mBufferImpl;
-        // have to implement these, but do nothing as overridden lock/unlock
-        void* lockImpl(size_t offset, size_t length, LockOptions options) {return 0;}
-        void unlockImpl(void) {}
-
+        /** See HardwareBuffer. */
+        void* lockImpl(size_t offset, size_t length, LockOptions options);
+        /** See HardwareBuffer. */
+        void unlockImpl(void);
     public:
-        D3D11HardwareVertexBuffer(HardwareBufferManagerBase* mgr, size_t vertexSize, size_t numVertices, 
-            HardwareBuffer::Usage usage, D3D11Device & device, bool useShadowBuffer,
-            bool streamOut);
-        ~D3D11HardwareVertexBuffer();
-
-        // override all data-gathering methods
-        void* lock(size_t offset, size_t length, LockOptions options);
-        void unlock(void);
+        GLHardwareVertexBuffer(GLenum target, size_t sizeInBytes, Usage usage, bool useShadowBuffer);
+        ~GLHardwareVertexBuffer();
+        /** See HardwareBuffer. */
         void readData(size_t offset, size_t length, void* pDest);
-        void writeData(size_t offset, size_t length, const void* pSource,
-            bool discardWholeBuffer = false);
+        /** See HardwareBuffer. */
+        void writeData(size_t offset, size_t length, 
+            const void* pSource, bool discardWholeBuffer = false);
+        /** See HardwareBuffer. */
+        void _updateFromShadow(void);
 
-        void copyData(HardwareBuffer& srcBuffer, size_t srcOffset, 
-            size_t dstOffset, size_t length, bool discardWholeBuffer = false);
-        bool isLocked(void) const;
-
-        /// Get the D3D-specific vertex buffer
-        ID3D11Buffer * getD3DVertexBuffer(void) const;
+        GLuint getGLBufferId(void) const { return mBufferId; }
     };
+    typedef GLHardwareVertexBuffer GLHardwareBuffer;
 
 }
-#endif
-
+#endif // __GLHARDWAREVERTEXBUFFER_H__
